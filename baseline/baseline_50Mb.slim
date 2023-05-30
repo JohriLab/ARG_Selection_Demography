@@ -1,8 +1,9 @@
 initialize() {
-	 defineGlobal("scale", 100);
+	 defineGlobal("scale", 4);
 	 defineGlobal("N", asInteger(20000));
     setSeed(1);
     initializeMutationRate(scale*1.25e-8);
+    m1.mutationStackPolicy = "l";
     initializeMutationType("m1", 0.5, "f", 0.0);
     initializeGenomicElementType("g1", m1, 1.0);
     initializeGenomicElement(g1, 0, 49999999);
@@ -10,10 +11,11 @@ initialize() {
 }
 1 early() {
     sim.addSubpop("p1", asInteger(N/scale));
-    community.rescheduleScriptBlock(s1, start=asInteger(10*N/scale), end=asInteger(10*N/scale));
+    community.rescheduleScriptBlock(s1, start=asInteger(10*N/scale), end=asInteger(20*N/scale));
 }
 s1 late(){
     p1.outputSample(10);
-    print(p1.individualCount);
-    p1.outputVCFSample(sampleSize=10, replace=T, requestedSex="*",outputMultiallelics=T, filePath=".../basic_sims/SLiM/slim_out/test.vcf", append=F, simplifyNucleotides=F, outputNonnucleotides=T);
+    p1.outputVCFSample(sampleSize=10, replace=T, requestedSex="*",outputMultiallelics=T, filePath=".../basic_sims/SLiM/slim_out/test.vcf", append=F, outputNonnucleotides=T);
+    print("N at the end of simulation: " + p1.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition);
 }
