@@ -24,9 +24,7 @@ module load slim
 module load gcc
 module load r
 
-slim /work/users/j/i/jimarsh/git/ARG_BGS/baseline/replicates_50Mb.slim
-
-slim -d d_scale=100 -d d_N=20000 -d d_burnin=15 -d d_nSamples=10 -d "d_repID='${repID}'" -d "d_folder='slim_out'" /work/users/j/i/jimarsh/git/ARG_BGS/baseline/replicates_50Mb.slim
+slim -d d_scale=100 -d d_N=20000 -d d_burnin=15 -d d_nSamples=10 -d d_repID=${repID} -d "d_folder='slim_out'" /work/users/j/i/jimarsh/git/ARG_BGS/baseline/replicates_50Mb.slim
 
 cd relate_out
 
