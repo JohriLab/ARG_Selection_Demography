@@ -1,0 +1,39 @@
+#!/bin/bash
+#SBATCH --mail-user=jimarsh@unc.edu
+#SBATCH --mail-type=ALL
+#SBATCH -p general
+#SBATCH -N 1
+#SBATCH -t 00-24:00:00
+#SBATCH --mem=20g
+#SBATCH -a 1-10%10
+#SBATCH -n 1
+#SBATCH -o /nas/longleaf/home/jimarsh/LOGFILES/N10_ds4.o
+#SBATCH -e /nas/longleaf/home/jimarsh/LOGFILES/N10_ds4.e
+
+echo "SLURM_JOBID: " $SLURM_JOBID
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+echo "SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
+
+declare -i startID=0
+
+declare -i repID=${startID}+$SLURM_ARRAY_TASK_ID
+
+cd /work/users/j/i/jimarsh/basic_sims/SLiM/ds4
+
+module load slim
+module load gcc
+module load r
+
+slim -d d_scale=10 -d d_N=20000 -d d_burnin=20 -d d_nSamples=10 -d d_repID=${repID} -d "d_folder='.'" /work/users/j/i/jimarsh/git/ARG_BGS/baseline/replicates_50Mb.slim
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/RelateFileFormats --mode ConvertFromVcf --haps N10_R${repID}.haps --sample N10_R${repID}.sample -i N10_R${repID}
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/Relate --mode All -m 1.25e-8 -N 40000 --haps N10_R${repID}.haps --sample N10_R${repID}.sample --map test.map --seed 1 -o N10_R${repID}
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/scripts/EstimatePopulationSize/EstimatePopulationSize.sh \
+              -i N10_R${repID} \
+              -m 1.25e-8 \
+              --poplabels N10.poplabels \
+              --seed 1 \
+	      --years_per_gen 1.0 \
+              -o N10_R${repID}_popsize

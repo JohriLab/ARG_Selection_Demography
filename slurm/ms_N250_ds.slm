@@ -1,0 +1,41 @@
+#!/bin/bash
+#SBATCH --mail-user=jimarsh@unc.edu
+#SBATCH --mail-type=ALL
+#SBATCH -p general
+#SBATCH -N 1
+#SBATCH -t 00-6:00:00
+#SBATCH --mem=20g
+#SBATCH -a 1-10%10
+#SBATCH -n 1
+#SBATCH -o /nas/longleaf/home/jimarsh/LOGFILES/msprime_N250_ds.o
+#SBATCH -e /nas/longleaf/home/jimarsh/LOGFILES/msprime_N250_ds.e
+
+echo "SLURM_JOBID: " $SLURM_JOBID
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+echo "SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
+
+declare -i startID=0
+
+declare -i repID=${startID}+$SLURM_ARRAY_TASK_ID
+
+cd /work/users/j/i/jimarsh/basic_sims/msprime
+
+module load gcc
+module load r
+source activate msprime-env
+
+./simulate_msprime.py . 250000000 1 ${repID} ${repID}
+
+cd relate_test
+
+head -n +2 ../N250_R${repID}.ms | tail -n +2 | sed 's/segsites: //' | xargs -I [] Rscript ms2haps.R ../N250_R${repID}.ms N250_R${repID} []
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/Relate --mode All -m 1.25e-8 -N 40000 --haps N250_R${repID}.haps --sample N250_R${repID}.sample --map test.map --seed 1 -o N250_R${repID}
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/scripts/EstimatePopulationSize/EstimatePopulationSize.sh \
+              -i N250_R${repID} \
+              -m 1.25e-8 \
+              --poplabels N250.poplabels \
+              --seed ${repID} \
+	      --years_per_gen 1.0 \
+              -o N250_R${repID}_popsize
