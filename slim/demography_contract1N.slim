@@ -1,0 +1,40 @@
+//To run:
+//slim -d "d_repID='1'"
+
+initialize() {
+    defineGlobal("scale", 10);
+    defineGlobal("N", 20000);
+    defineGlobal("burnin", 10);
+    defineGlobal("nSamples", 50);
+    setSeed(1);
+    initializeMutationRate(scale*1.25e-8);
+    initializeMutationType("m1", 0.5, "f", 0.0);
+    m1.mutationStackPolicy = "l";
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 149999999);
+    initializeRecombinationRate(scale*1e-8);
+}
+1 early() {
+    sim.addSubpop("p1", asInteger(N/scale));
+//  community.rescheduleScriptBlock(s1, start=5000, end = 5000);//asInteger(burnin*N/scale), end=asInteger(burnin*N/scale+0.5*N/scale));
+//   community.rescheduleScriptBlock(s2, start=7500, end = 7500);//asInteger(burnin*N/scale+0.5*N/scale), end=asInteger(burnin*N/scale+0.5*N/scale));
+}
+
+19999 late() {
+    print("N prior to pop change: " + p1.individualCount);
+}
+
+
+20000:22000 early() {
+t = (community.tick - asInteger(burnin*N/scale));
+p1_size = round(asInteger(N/scale) - round((0.00004*scale*t^2)));
+p1.setSubpopulationSize(asInteger(p1_size));
+//asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
+}
+
+22000 late(){
+//    p1.outputSample(nSamples);
+    p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/demobox/ds10_contract1N_N50_150Mb_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
+    print("N at the end of simulation: " + p1.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition);
+}
