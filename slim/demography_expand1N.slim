@@ -25,14 +25,14 @@ initialize() {
 }
 
 
-20000:21000 early() {
+20000:22000 early() {
 t = (community.tick - asInteger(burnin*N/scale));
-p1_size = round(asInteger(N/scale) + round((0.0008*scale*t^2)));
+p1_size = round(asInteger(N/scale) + round((0.0002*scale*t^2)));
 p1.setSubpopulationSize(asInteger(p1_size));
 //asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
 }
 
-21000:21000 late(){
+22000 late(){
 //    p1.outputSample(nSamples);
     p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/demobox/ds10_re_expand_N50_150Mb_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
     print("N at the end of simulation: " + p1.individualCount);

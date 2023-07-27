@@ -14,6 +14,8 @@ initialize() {
     initializeGenomicElement(g1, 0, 149999999);
     initializeRecombinationRate(scale*1e-8);
 }
+
+
 1 early() {
     sim.addSubpop("p1", asInteger(N/scale));
 //  community.rescheduleScriptBlock(s1, start=5000, end = 5000);//asInteger(burnin*N/scale), end=asInteger(burnin*N/scale+0.5*N/scale));
@@ -25,16 +27,28 @@ initialize() {
 }
 
 
-20000:21000 early() {
-t = (community.tick - asInteger(burnin*N/scale));
-p1_size = round(asInteger(N/scale) + round((0.0008*scale*t^2)));
-p1.setSubpopulationSize(asInteger(p1_size));
+20000 early() {
+p1.setSubpopulationSize(200);
 //asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
+//gap2
 }
 
-21000:21000 late(){
+20200 early() {
+p1.setSubpopulationSize(2000);
+}
+
+22200 early() {
+p1.setSubpopulationSize(200);
+//gap2
+}
+
+22400 early() {
+p1.setSubpopulationSize(2000);
+}
+
+24400 late(){
 //    p1.outputSample(nSamples);
-    p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/demobox/ds10_re_expand_N50_150Mb_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
-    print("N at the end of simulation: " + p1.individualCount);
+    p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/demobox/ds10_gaptooth2_N50_150Mb_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);    
+print("N at the end of simulation: " + p1.individualCount);
     print("The last base in the chromosome: " + sim.chromosome.lastPosition);
 }
