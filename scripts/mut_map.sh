@@ -32,3 +32,5 @@ done
 
 #echo -e "end\trate" > chr${1}_mutation.map
 head -n-1 temp.map >> chr${1}_mutation.map
+
+awk '$1 = $1-6010000 {print $0}' chr7_mutation.map > chr7_trimmed_mutation.map
