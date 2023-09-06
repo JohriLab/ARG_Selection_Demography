@@ -1,42 +1,99 @@
 
 ##Alpha calculation
 
-alpha calculate from uniq -c of m1-6
-
-grep -m 1 -A 1000000 Mutations production_huber_BGS_highS_midG_constant.o | grep -m 1 -B 10000000 '"' | head -n -1 | awk '{print $3}' | sort | uniq -c > temp.txt
-cat temp.txt | grep m6 | sed "s/ //g" | sed "s/m6//g" | xargs -I [] awk '{sum+=$1;} END {print []/sum}' temp.txt
+for y in {low,mid,high}
+do
+for x in {low,high}
+do
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "huber_BGS_${x}S_${y}G_${q}"
+grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/production_huber_BGS_${x}S_${y}G_${q}.o | awk '{if ($NF >= 12000) print}' | grep "m." | sed 's/ [^ ]* [^ ]* p1.*//' | sed 's/.*m/m/' | grep -wf exon_positions.txt - | sed 's/ .*//' | sort | uniq -c | awk '{if ($2 == "m1") $1 = $1*.4; print}' > mcount_production_huber_BGS_${x}S_${y}G_${q}.txt
+grep m6 mcount_production_huber_BGS_${x}S_${y}G_${q}.txt | sed "s/ //g" | sed "s/m6//g" | xargs -I [] awk '{sum+=$1;} END {print []/sum}' mcount_production_huber_BGS_${x}S_${y}G_${q}.txt
+done
+done
+done
 
 ##Divergence in neutral intergenic/intronic regions
 
 "Theta pi for neutral interg/intron across whole genome = 0.000647246"
 0.000647246*138600000 = 129819787
 
-grep m5 /nas/longleaf/home/jimarsh/LOGFILES/production_huber_BGS_highS_midG_constant.o | grep p1 | wc -l
-"1879832"
+for y in {low,mid,high}
+do
+for x in {low,high}
+do
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "huber_BGS_${x}S_${y}G_${q}"
+grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/production_huber_BGS_${x}S_${y}G_${q}.o | awk '{if ($NF >= 12000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
+done
+done
+done
 
-div = (1879832/10)/129819787
+for x in {huber,johri}
+do
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "${x}_${q}"
+grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/production_${x}_BGS_nopos_${q}.o | awk '{if ($NF >= 12000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
+done
+done
+done
+
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "neutral_${q}"
+grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/production_neutral_${q}.o | awk '{if ($NF >= 12000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
+done
+done
+
+#Then need to divide each demographic scenario by nGenerations after 6N
+
+#e.g. "1879832"
+#div = (1879832/10)/129819787
 
 ##Divergence in exonic regions
 
-# Read the content of file 1 and extract the two columns as ranges
-with open('file1.txt', 'r') as file1:
-    lines = file1.readlines()
-    ranges = [(int(line.split()[1]), int(line.split()[2])) for line in lines]
 
-# Read the content of file 2 and extract the integers
-with open('file2.txt', 'r') as file2:
-    integers = [int(line.strip()) for line in file2.readlines()]
+for y in {low,mid,high}
+do
+for x in {low,high}
+do
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "huber_BGS_${x}S_${y}G_${q}"
 
-# Iterate through the integers and check if they are within any of the ranges
-for num in integers:
-    for range_start, range_end in ranges:
-        if range_start <= num < range_end:
-            print(num)
-            break  # No need to check other ranges if the number is already found within one
+grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/production_huber_BGS_${x}S_${y}G_${q}.o | awk '{if ($NF >= 12000) print}' | sed 's/.*m. //' | sed 's/ .*//' > subs_production_huber_BGS_${x}S_${y}G_${q}.txt
 
-grep p1 /nas/longleaf/home/jimarsh/LOGFILES/production_huber_BGS_highS_midG_constant.o | sed 's/[^ ]* //' | sed 's/ m.*//' > test_subs.txt
+grep -wf exon_positions.txt subs_production_huber_BGS_${x}S_${y}G_${q}.txt | wc -l | xargs -I [] echo "[]/(11*797*311*10)" | bc -l
+done
+done
+done
 
-div = ans/(11*979*311)
+for x in {huber,johri}
+do
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "${x}_${q}"
+grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/production_${x}_BGS_nopos_${q}.o | awk '{if ($NF >= 12000) print}' | sed 's/.*m. //' | sed 's/ .*//' > subs_production_${x}_BGS_nopos_${q}.txt
+
+grep -wf exon_positions.txt subs_production_${x}_BGS_nopos_${q}.txt | wc -l | xargs -I [] echo "[]/(11*797*311*10)" | bc -l
+done
+done
+
+
+for q in {constant,expansion,contract,bottleneck,repbneck}
+do
+echo -e "neutral_${q}"
+
+grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/production_neutral_${q}.o | awk '{if ($NF >= 12000) print}' | sed 's/.*m. //' | sed 's/ .*//' > subs_production_neutral_${q}.txt
+
+grep -wf exon_positions.txt subs_production_neutral_${q}.txt | wc -l | xargs -I [] echo "[]/(11*797*311*10)" | bc -l
+
+done
+done
+
 
 ##Pi in neutral intergenic/intronic regions
 
