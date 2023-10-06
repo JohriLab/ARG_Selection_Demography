@@ -6,7 +6,7 @@ initialize() {
     defineGlobal("scale", 10);
     defineGlobal("N", 20000);
     defineConstant("Na", N);
-    defineGlobal("burnin", 14);
+    defineGlobal("burnin", 10);
     defineGlobal("nSamples", 50);
     setSeed(asInteger(d_repID));
 
@@ -34,16 +34,17 @@ initialize() {
     initializeMutationType("m4", 0.5, "s", "return runif(1, t4, t3);"); //strongly deleterious, 2Nes>=-100, uniform distribution
     initializeMutationType("m5", 0.5, "f", 0.0); //neutral intergenic, 2Nes = 0
 
-///Beneficial Muts
-    defineConstant("s_pos", gamma_pos/(2.0*Na));
-    initializeMutationType("m6", 0.5, "e", s_pos); //beneficial class
+///Beneficial Muts (disabled)
+ //   defineConstant("gamma_pos", d_gamma_pos);
+ //   defineConstant("s_pos", gamma_pos/(2.0*Na));
+ //   initializeMutationType("m6", 0.5, "e", s_pos); //beneficial class
 
 ///Create genomic elements classes (genes and intergenic)
-    initializeGenomicElementType("g1", c(m5, m1, m2, m3, m4, m6), c(1-f_interg,f0*f_del*f_interg, f1*f_del*f_interg, f2*f_del*f_interg, f3*f_del*f_interg, f_pos*f_interg)); //intergenic
-    initializeGenomicElementType("g2", c(m5, m1, m2, m3, m4, m6), c(1-f_intron,f0*f_del*f_intron, f1*f_del*f_intron, f2*f_del*f_intron, f3*f_del*f_intron, f_pos*f_intron)); //intronic
-    initializeGenomicElementType("g3", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //exons: weakly deleterious, gamma, need to add m6 for ben muts
-    initializeGenomicElementType("g4", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //5UTR: weakly deleterious, gamma, need to add m6 for ben muts
-    initializeGenomicElementType("g5", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //3UTR: weakly deleterious, gamma, need to add m6 for ben muts
+    initializeGenomicElementType("g1", c(m5, m1, m2, m3, m4), c(1-f_interg,f0*f_del*f_interg, f1*f_del*f_interg, f2*f_del*f_interg, f3*f_del*f_interg)); //intergenic
+    initializeGenomicElementType("g2", c(m5, m1, m2, m3, m4), c(1-f_intron,f0*f_del*f_intron, f1*f_del*f_intron, f2*f_del*f_intron, f3*f_del*f_intron)); //intronic
+    initializeGenomicElementType("g3", c(m1, m2, m3, m4), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del)); //exons: weakly deleterious, gamma, need to add m6 for ben muts
+    initializeGenomicElementType("g4", c(m1, m2, m3, m4), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del)); //5UTR: weakly deleterious, gamma, need to add m6 for ben muts
+    initializeGenomicElementType("g5", c(m1, m2, m3, m4), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del)); //3UTR: weakly deleterious, gamma, need to add m6 for ben muts
 
 ///Set gene parameters
     intron_len = 6938; // Needed Lynch 2006 esimate of 3749, rather than Piovesan 2019's estimate of 6938bp
@@ -171,23 +172,21 @@ mlines = readFile("/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/chr7
     sim.addSubpop("p1", asInteger(N/scale));
 }
 
-27999 late() {
+19999 late() {
     print("N prior to pop change: " + p1.individualCount);
 }
 
 
-28000:30000 early() {
+20000:22000 early() {
 t = (community.tick - asInteger(burnin*N/scale));
-p1_size = round(asInteger(N/scale) + round((0.0002*scale*t^2)));
+p1_size = round(asInteger(N/scale) - round((0.00004*scale*t^2)));
 p1.setSubpopulationSize(asInteger(p1_size));
 //asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
 }
 
 
-30000 late(){
-p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/dfe_re_productionbox/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
-
-   sim.outputFixedMutations(); 
+22000 late(){
+p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
 
     print("N at the end of simulation: " + p1.individualCount);
     print("The last base in the chromosome: " + sim.chromosome.lastPosition + " (" + asInteger(sim.chromosome.lastPosition)/1000000 + "Mb)");
@@ -207,7 +206,7 @@ p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/u
     print("m3 = " + (sim.countOfMutationsOfType(m3)/size(sim.mutations)) + "(f2)");
     print("m4 = " + (sim.countOfMutationsOfType(m4)/size(sim.mutations)) + "(f3)");
     print("m5 = " + (sim.countOfMutationsOfType(m5)/size(sim.mutations)) + "(interg/intron neutral)");
-    print("m6 = " + (sim.countOfMutationsOfType(m6)/size(sim.mutations)));
+//    print("m6 = " + (sim.countOfMutationsOfType(m6)/size(sim.mutations)));
 
 
 }
