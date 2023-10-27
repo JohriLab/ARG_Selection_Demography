@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH --mail-user=jimarsh@unc.edu
+#SBATCH --mail-type=ALL
+#SBATCH -p general
+#SBATCH -N 1
+#SBATCH -t 00-96:00:00
+#SBATCH --mem=40g
+#SBATCH -a 1-10%10
+#SBATCH -n 1
+#SBATCH -o /nas/longleaf/home/jimarsh/LOGFILES/drosoph_3Mb_300X_test.o
+#SBATCH -e /nas/longleaf/home/jimarsh/LOGFILES/drosoph_3Mb_300X_test.e
+
+echo "SLURM_JOBID: " $SLURM_JOBID
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+echo "SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
+
+declare -i startID=0
+
+declare -i repID=${startID}+$SLURM_ARRAY_TASK_ID
+
+cd /work/users/j/i/jimarsh/drosoph_sims/sizebox
+
+module load slim
+module load gcc
+
+ slim -d d_repID=${repID} \
+	 3Mb_300X.slim
