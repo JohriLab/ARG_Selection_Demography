@@ -39,12 +39,13 @@ echo -e "${x}_${q}"
 grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/re_production_${x}_BGS_nopos_${q}.o | awk '{if ($NF >= 20000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
 done
 done
-done
 
+for x in {neutral,neutral_nomaps}
+do
 for q in {constant,expansion,contract,bottleneck,repbneck}
 do
-echo -e "neutral_${q}"
-grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/re_production_neutral_${q}.o | awk '{if ($NF >= 20000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
+echo -e "${x}_${q}"
+grep -ae m5 /nas/longleaf/home/jimarsh/LOGFILES/re_production_${x}_${q}.o | awk '{if ($NF >= 20000) print}' | grep p1 | wc -l | xargs -I [] echo [] "/1298197870" | bc -l
 done
 done
 
@@ -82,15 +83,16 @@ grep -wf exon_positions.txt subs_re_production_${x}_BGS_nopos_${q}.txt | wc -l |
 done
 done
 
-
+for x in {neutral,neutral_nomaps}
+do
 for q in {constant,expansion,contract,bottleneck,repbneck}
 do
-echo -e "neutral_${q}"
+echo -e "${x}_${q}"
 
-grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/re_production_neutral_${q}.o | awk '{if ($NF >= 20000) print}' | sed 's/.*m. //' | sed 's/ .*//' > subs_re_production_neutral_${q}.txt
+grep -ae p1 /nas/longleaf/home/jimarsh/LOGFILES/re_production_${x}_${q}.o | awk '{if ($NF >= 20000) print}' | sed 's/.*m. //' | sed 's/ .*//' > subs_re_production_${x}_${q}.txt
 
-grep -wf exon_positions.txt subs_re_production_neutral_${q}.txt | wc -l | xargs -I [] echo "[]/(11*797*311*10)" | bc -l
-
+grep -wf exon_positions.txt subs_re_production_${x}_${q}.txt | wc -l | xargs -I [] echo "[]/(11*797*311*10)" | bc -l
+done
 done
 
 
@@ -117,10 +119,13 @@ grep -ae "Rep." /nas/longleaf/home/jimarsh/LOGFILES/re_production_${x}_BGS_nopos
 done
 done
 
+for x in {neutral,neutral_nomaps}
+do
 for q in {constant,expansion,contract,bottleneck,repbneck}
 do
-echo -e "neutral_${q}"
-grep -ae "Rep." /nas/longleaf/home/jimarsh/LOGFILES/re_production_neutral_${q}.o | sed 's/.*= //' | sed 's/"//' | awk '{ tot+=$1;cnt++ } END { print tot/cnt }'
+echo -e "${x}_${q}"
+grep -ae "Rep." /nas/longleaf/home/jimarsh/LOGFILES/re_production_${x}_${q}.o | sed 's/.*= //' | sed 's/"//' | awk '{ tot+=$1;cnt++ } END { print tot/cnt }'
+done
 done
 
 ##Pi in exonic regions
@@ -158,15 +163,18 @@ done
 done
 done
 
+for x in {neutral,neutral_nomaps}
+do
 for q in {constant,expansion,contract,bottleneck,repbneck}
 do
 for i in {1..10} 
 do
-bgzip ../re_production_neutral_${q}_R${i}.vcf
-bcftools index ../re_production_neutral_${q}_R${i}.vcf.gz
-bedtools intersect -a ../re_production_neutral_${q}_R${i}.vcf.gz -b ../../slim_exons.bed -header > g3_${i}.vcf
+bgzip ../re_production_${x}_${q}_R${i}.vcf
+bcftools index ../re_production_${x}_${q}_R${i}.vcf.gz
+bedtools intersect -a ../re_production_${x}_${q}_R${i}.vcf.gz -b ../../slim_exons.bed -header > g3_${i}.vcf
 vcftools --vcf g3_${i}.vcf --site-pi --out g3_${i}
-awk '{ sum += $NF } END { print sum / (11*797*311)}' g3_${i}.sites.pi >> re_production_neutral_${q}.exon.pi
+awk '{ sum += $NF } END { print sum / (11*797*311)}' g3_${i}.sites.pi >> re_production_${x}_${q}.exon.pi
+done
 done
 done
 

@@ -4,10 +4,10 @@ setSeed(1);
 for (iteration in 1:10000){
   ngenes=NULL;
   
-    intron_len = 6938; // Needed Lynch 2006 esimate of 3749, rather than Piovesan 2019's estimate of 6938bp
+    intron_len = 6938;
     exon_len = 311;
     UTR5 = 200;
-    UTR3 = 800; //Assumes genes always on positive strand
+    UTR3 = 800;
     num_exons = 11;
     num_introns = 10;
     
@@ -35,3 +35,41 @@ for (iteration in 1:10000){
 	sum(ngenes);
 //On iteration 72 under setSeed(1), ngenes == 797
 //The ngenes per bin vector was saved and used in all replicates to generate the same chromosome
+
+// FOR DROSOPHILA: 
+
+setSeed(1);
+
+for (iteration in 1:10000){
+  ngenes=NULL;
+  
+    intron_len = 999;
+    exon_len = 314;
+    UTR5 = 266;
+    UTR3 = 382;
+    num_exons = 5;
+    num_introns = 4;
+    
+    full_gene_len = exon_len*num_exons + intron_len*num_introns;
+    gene_block_len = UTR3 + UTR5 + full_gene_len;    
+    
+    
+    num_bins = 10; //Number of 1Mb segments
+    bin_size = 100000; //Size of bins (1Mb)
+    
+    ngenes = rnorm(num_bins, 11.29365, 7.647666);
+    for (i in 0:(size(ngenes)-1)){
+	ngenes[i] = ifelse(ngenes[i] < 0, asInteger(0), asInteger(ngenes[i])); // Min genes per block = 0
+	ngenes[i] = ifelse(ngenes[i]*gene_block_len  > bin_size, asInteger(bin_size/gene_block_len), asInteger(ngenes[i])); // Max genes per block (rounded down)
+	}
+	ngenes=(asInteger(ngenes));
+	if(sum(ngenes)==113){
+	print(iteration);
+	break;
+	}}
+	
+	
+	ngenes;
+	
+	sum(ngenes);
+//On iteration 140 under setSeed(1), ngenes == 113
