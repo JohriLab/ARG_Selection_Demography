@@ -5,7 +5,7 @@ initialize() {
 ///Set general parameters
     defineGlobal("scale", 10);
     defineGlobal("N", 20000);
-    defineConstant("Na", N);
+    defineConstant("Na", asInteger(N/scale));
     defineGlobal("burnin", 14);
     defineGlobal("nSamples", 50);
     setSeed(asInteger(d_repID));

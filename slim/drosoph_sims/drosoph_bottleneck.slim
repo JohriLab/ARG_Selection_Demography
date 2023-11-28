@@ -1,17 +1,18 @@
 //To run:
-//slim -d d_repID='1' -d d_f0=0.51 -d d_f1=0.14 -d d_f2=0.14 -d d_f3=0.21 -d d_f_pos=0 -d d_gamma_pos=125 -d "d_name='production_huber_BGS_nopos_constant'"
+//slim -d d_repID='1' -d d_f0=0.51 -d d_f1=0.14 -d d_f2=0.14 -d d_f3=0.21 -d d_f_pos=0 -d d_gamma_pos=125 -d "d_name='production_huber_BGS_nopos_bottleneck'"
+
+
 
 initialize() {
 ///Set general parameters
-    defineGlobal("scale", 10);
-    defineGlobal("N", 20000);
+    defineGlobal("scale", 100);
+    defineGlobal("N", 1e6);
     defineConstant("Na", asInteger(N/scale));
     defineGlobal("burnin", 14);
     defineGlobal("nSamples", 50);
     setSeed(asInteger(d_repID));
 
-
-///Set DFE constants
+///Set DFE bottlenecks
     defineConstant("t0", 0.0);
     defineConstant("t1", -1.0/(2*Na));
     defineConstant("t2", -10.0/(2*Na));
@@ -24,8 +25,8 @@ initialize() {
     defineConstant("f1", d_f1); //weakly del
     defineConstant("f2", d_f2); //mod del
     defineConstant("f3", d_f3); //strong del
-    defineConstant("f_intron", 1.54/(33.83+1.54));
-    defineConstant("f_interg", 1.63/(43.67+1.63));
+    defineConstant("f_intron", 0.573);
+    defineConstant("f_interg", 0.466);
 
 ///Deleterious DFE
     initializeMutationType("m1", 0.5, "f", 0.0); //neutral coding, 2Nes = [0,-1]
@@ -46,24 +47,24 @@ initialize() {
     initializeGenomicElementType("g5", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //3UTR: weakly deleterious, gamma, need to add m6 for ben muts
 
 ///Set gene parameters
-    intron_len = 6938; // Needed Lynch 2006 esimate of 3749, rather than Piovesan 2019's estimate of 6938bp
-    exon_len = 311;
-    UTR5 = 200;
-    UTR3 = 800; //Assumes genes always on positive strand
-    num_exons = 11;
-    num_introns = 10;
+    intron_len = 999; // Needed Lynch 2006 esimate of 3749, rather than Piovesan 2019's estimate of 6938bp
+    exon_len = 314;
+    UTR5 = 266;
+    UTR3 = 382; //Assumes genes always on positive strand
+    num_exons = 5;
+    num_introns = 4;
     
     full_gene_len = exon_len*num_exons + intron_len*num_introns;
     gene_block_len = UTR3 + UTR5 + full_gene_len;
     exon_block_len = exon_len + intron_len;
     
 ///Set genome structure parameters
-    num_bins = 138; //Number of 1Mb segments
-    bin_size = 1000000; //Size of bins (1Mb)
-	 init_token = 300000; token = init_token;//"Telomeric" intergenic length
-    ngenes=c(0,13,6,10,3,8,12,7,4,2,5,0,5,4,12,3,0,4,2,1,8,4,0,8,6,6,7,0,8,13,0,3,4,1,13,0,1,0,0,8,3,4,6,2,4,0,3,11,9,7,9,13,3,0,8,13,9,10,10,9,13,8,8,0,0,11,5,3,3,1,3,1,6,13,13,12,8,3,9,7,13,12,3,0,2,13,1,6,1,0,7,4,8,1,3,12,0,13,1,6,7,4,3,0,3,8,10,7,0,3,11,9,5,7,5,13,10,0,8,11,8,3,13,7,8,1,5,13,0,11,5,2,13,5,12,0,8,2); //See gene_density_generation.slim for details
+    num_bins = 10; //Number of 1Mb segments
+    bin_size = 100000; //Size of bins (1Mb)
+	 init_token = 20000; token = init_token;//"Telomeric" intergenic length
+    ngenes=c(11,16,14,2,10,0,16,16,13,15); //See gene_density_generation.slim for details
 	
-//Print summaries, and save constants for printing at end of simulation
+//Print summaries, and save bottlenecks for printing at end of simulation
     print("gene length = " + full_gene_len);
     print("ngenes per bin printed below:");
 	 print(ngenes);   
@@ -109,85 +110,53 @@ initialize() {
 //End build genes
 
 
-//Mutation rate from chr7 file
+//Mutation rate generated distribution by rnorm(), with 20kb intergenic telomeres with mean rate 3e-9
 
-mlines = readFile("/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/chr7_trimmed_mutation.map");
-
-	mends=0;
-	mrates=0;
-	mscale=(num_bins*bin_size+2*init_token)/asInteger(strsplit(mlines[length(mlines)-1], " ")[0]);
-
-	for (line in mlines)
- 	  {
- 	  mfields=strsplit(line, " ");
- 	  mends=c(mends,asInteger(asInteger(mfields[0])*mscale));
- 	  mrates=c(mrates,asFloat(mfields[1]));
- 	  if(mends[length(mends)-1]==mends[length(mends)-2])
-  		 	{
- 		  	mends=mends[0:(length(mends)-2)];
- 		  	mrates=mrates[0:(length(mends)-1)];
- 		  	}
- 	  }
-  
-	mends=mends[1:(length(mends)-1)];
-	mrates=mrates[1:(length(mrates)-1)];
-
-	//Recombination rate from chr7 file 
-	  	rlines=readFile("/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/chr7_trimmed_recs.txt");
-
- 	rends=0;
- 	rrates=0;
- 	rscale=(num_bins*bin_size+2*init_token)/asInteger(strsplit(rlines[length(rlines)-1], " ")[0]);
+	mrates = c(3,3.55,3.38,2.65,0.42,1.60,3.22,4.43,4.98,3.51,1.21,0.75,4.67,3.07,1.60,2.88,3.99,4.32,1.10,2.30,2.96,2.67,2.63,3.50,4.42,2.75,2.13,1.56,5.49,3.16,5.21,1.99,2.47,0.96,2.23,2.77,1.62,3.17,1.77,0.61,2.04,3.71,3.83,3.91,2.16,2.84,3.13,7.70,1.23,4.26,1.60,2.47,4.09,2.92,0.74,2.24,0.05,4.88,5.05,2.81,3.14,3.43,2.60,4.78,3.01,2.78,2.50,4.62,2.43,1.55,3.44,3.48,3.73,3.13,1.40,2.96,3.81,1.70,0.30,3.22,2.76,3.48,1.31,3.47,1.02,5.37,2.65,2.61,1.81,3.56,4.59,5.03,5.01,2.23,3.50,1.91,5.17,2.85,4.28,4.33,0.3,3);
+	mrates=mrates*1e-9;
 	
-	for (line in rlines)
-		{
-		rfields=strsplit(line, " ");
-		rends=c(rends,asInteger(asInteger(rfields[0])*rscale));
-		rrates=c(rrates,asFloat(rfields[1]));
-   		if(rends[length(rends)-1]==rends[length(rends)-2])
-   			{
-   			rends=rends[0:(length(rends)-2)];
-   			rrates=rrates[0:(length(rends)-1)];
-   			}
-  		 }
-		
-   for (i in 1:length(rrates)-1)
-   		{
-   		rrates[i]=ifelse(rrates[i]==0, 0.000001, rrates[i]);
-   		}		
+	mends=19999;
+	for (i in 1:100){mends = c(mends,19999+10000*i);}
+	mends=c(mends, 1039999);
 	
-	rends=rends[1:(length(rends)-1)];
-	rrates=rrates[1:(length(rrates)-1)];
-	  
-	initializeMutationRate(scale*mrates*(1.25e-8/(sum(mrates)/length(mrates))), asInteger(mends)); //mrates scaled for mean to be 1.25e-9
-	initializeRecombinationRate(scale*rrates*1e-8, asInteger(rends));
+	
+//Recomb rates taken from mean across 100x 100Kb bins from 10Mb-20Mb on 2R (Comeron et al. 2012)
 
-//    initializeMutationRate(scale*1.25e-8);
-//    initializeRecombinationRate(scale*1e-8);
+	rrates = c(1,1.03,1.18,1.46,0.49,0.94,0.70,0.54,0.39,1.21,1.70,0.30,0.36,0.94,0.36,1.24,0.82,1.15,0.61,1.09,1.00,1.88,2.27,0.88,1.24,1.27,2.27,1.00,0.58,0.82,0.46,0.82,0.49,1.39,0.79,0.15,0.85,0.67,1.12,2.18,1.24,0.88,1.58,0.88,0.91,0.88,2.03,1.03,2.48,1.00,1.15,1.58,1.36,1.18,0.64,0.54,0.36,0.12,0.46,0.49,0.06,0.85,1.27,1.48,0.94,1.06,1.88,1.00,0.76,2.00,0.73,1.51,2.09,0.73,0.70,1.70,1.42,0.73,0.70,0.49,0.76,0.61,0.70,0.27,2.33,0.88,0.46,0.64,0.88,0.70,0.88,0.67,0.39,0.24,2.09,1.79,1.06,1.64,0.51,0.61,0.42,1);
+	rrates=rrates*1e-8;
+	
+	rends=19999;
+	for (i in 1:100){rends = c(rends,19999+10000*i);}
+	rends=c(rends, 1039999);
+
+	initializeMutationRate(scale*mrates, asInteger(mends)); //mrates scaled for mean to be 3e-9
+
+    initializeRecombinationRate(scale*rrates, asInteger(rends)); //mrates scaled for mean to be 1e-8
 }
-
 
 1 early() {
     sim.addSubpop("p1", asInteger(N/scale));
 }
 
-27999 late() {
+139999 late(){
     print("N prior to pop change: " + p1.individualCount);
 }
 
+140000 late(){
+p1.setSubpopulationSize(asInteger(N/scale/10));
+}
 
-28000:30000 early() {
-t = (community.tick - asInteger(burnin*N/scale));
-p1_size = round(asInteger(N/scale) - round((0.00004*scale*t^2)));
+140010:150010 early(){
+t = (community.tick - 140010);
+p1_size = round(asInteger(N/scale/10) + round((0.0000009*scale*t^2)));
 p1.setSubpopulationSize(asInteger(p1_size));
-//asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
 }
 
 
-30000 late(){
-p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/dfe_re_productionbox/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
+150010 late(){
+p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/drosoph_sims/dfe_productionbox/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
 
-    sim.outputFixedMutations(); 
+sim.outputFixedMutations(); 
 
     print("N at the end of simulation: " + p1.individualCount);
     print("The last base in the chromosome: " + sim.chromosome.lastPosition + " (" + asInteger(sim.chromosome.lastPosition)/1000000 + "Mb)");
@@ -202,6 +171,7 @@ p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/u
     print("Theta pi for all mutations = " + (calcHeterozygosity(genomes=p1.genomes)));
     print("Theta pi for neutral interg/intron across whole genome = " + (calcHeterozygosity(genomes=p1.genomes, muts=sim.mutationsOfType(m5))));    
     print("Rep" + d_repID + " theta pi for neutral interg/intron, size corrected = " + (calcHeterozygosity(genomes=p1.genomes, muts=sim.mutationsOfType(m5))/((prop_intron-prop_intron*f_intron) + (prop_interg-prop_interg*f_interg))));
+    print("rep" + d_repID + " W pi for neutral interg/intron, size corrected = " + (calcWattersonsTheta(genomes=p1.genomes, muts=sim.mutationsOfType(m5))/((prop_intron-prop_intron*f_intron) + (prop_interg-prop_interg*f_interg))));
     print("m1 = " + (sim.countOfMutationsOfType(m1)/size(sim.mutations)) + "(f0)");
     print("m2 = " + (sim.countOfMutationsOfType(m2)/size(sim.mutations)) + "(f1)");
     print("m3 = " + (sim.countOfMutationsOfType(m3)/size(sim.mutations)) + "(f2)");

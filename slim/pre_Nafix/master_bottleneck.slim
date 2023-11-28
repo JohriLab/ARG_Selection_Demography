@@ -5,7 +5,7 @@ initialize() {
 ///Set general parameters
     defineGlobal("scale", 10);
     defineGlobal("N", 20000);
-    defineConstant("Na", asInteger(N/scale));
+    defineConstant("Na", N);
     defineGlobal("burnin", 14);
     defineGlobal("nSamples", 50);
     setSeed(asInteger(d_repID));
@@ -166,7 +166,6 @@ mlines = readFile("/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/chr7
 //    initializeRecombinationRate(scale*1e-8);
 }
 
-
 1 early() {
     sim.addSubpop("p1", asInteger(N/scale));
 }
@@ -175,19 +174,20 @@ mlines = readFile("/work/users/j/i/jimarsh/test_sims/SLiM/dfe_productionbox/chr7
     print("N prior to pop change: " + p1.individualCount);
 }
 
-
-28000:30000 early() {
-t = (community.tick - asInteger(burnin*N/scale));
-p1_size = round(asInteger(N/scale) - round((0.00004*scale*t^2)));
-p1.setSubpopulationSize(asInteger(p1_size));
-//asInteger(round(asInteger(N/scale)-(0.1*exp(1*t)))));
+28000 early() {
+p1.setSubpopulationSize(asInteger(N/scale/10));
 }
 
+28010:30010 early() {
+t = (community.tick - 28010);
+p1_size = round(asInteger(N/scale/10) + round((0.000045*scale*t^2)));
+p1.setSubpopulationSize(asInteger(p1_size));
+}
 
-30000 late(){
+30010 late(){
 p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/test_sims/SLiM/dfe_re_productionbox/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
 
-    sim.outputFixedMutations(); 
+sim.outputFixedMutations(); 
 
     print("N at the end of simulation: " + p1.individualCount);
     print("The last base in the chromosome: " + sim.chromosome.lastPosition + " (" + asInteger(sim.chromosome.lastPosition)/1000000 + "Mb)");
@@ -208,4 +208,6 @@ p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/u
     print("m4 = " + (sim.countOfMutationsOfType(m4)/size(sim.mutations)) + "(f3)");
     print("m5 = " + (sim.countOfMutationsOfType(m5)/size(sim.mutations)) + "(interg/intron neutral)");
     print("m6 = " + (sim.countOfMutationsOfType(m6)/size(sim.mutations)));
+
+
 }
