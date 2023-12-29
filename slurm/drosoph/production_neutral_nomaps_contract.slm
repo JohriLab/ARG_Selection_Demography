@@ -30,18 +30,27 @@ module load vcftools
 	 -d d_f2=0 \
 	 -d d_f3=0 \
 	 -d d_f_pos=0 \
-	 -d d_gamma_pos=125 \
+	 -d d_gamma_pos=20 \
 	 -d 'd_name="production_neutral_nomaps_contract"' \
 	 /work/users/j/i/jimarsh/drosoph_sims/drosoph_nomaps_contract.slim
 
- grep '#' production_neutral_nomaps_contract_R${repID}.vcf > m5_production_neutral_nomaps_contract_R${repID}.vcf
-grep "MT=5" production_neutral_nomaps_contract_R${repID}.vcf >> m5_production_neutral_nomaps_contract_R${repID}.vcf 
+ grep '#' production_neutral_nomaps_contract_R${repID}.vcf > m5_production_neutral_nomaps_constant_R${repID}.vcf
+grep "MT=5" production_neutral_nomaps_contract_R${repID}.vcf >> m5_production_neutral_nomaps_constant_R${repID}.vcf 
 
- vcftools --vcf production_neutral_nomaps_contract_R${repID}.vcf --site-pi --out  production_neutral_nomaps_contract_R${repID}
+ vcftools --vcf production_neutral_nomaps_contract_R${repID}.vcf --site-pi --out  production_neutral_nomaps_constant_R${repID}
 
- /work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/RelateFileFormats --mode ConvertFromVcf --haps m5_production_neutral_nomaps_contract_R${repID}.haps --sample m5_production_neutral_nomaps_contract_R${repID}.sample -i m5_production_neutral_nomaps_contract_R${repID}
+ /work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/RelateFileFormats --mode ConvertFromVcf --haps m5_preproduction_neutral_nomaps_contract_R${repID}.haps --sample m5_production_neutral_nomaps_constant_R${repID}.sample -i m5_production_neutral_nomaps_constant_R${repID}
 
-/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/Relate --mode All -m 3e-9 -N $(grep -ae "Rep${repID} theta pi for neutral interg/intron, size corrected = " /nas/longleaf/home/jimarsh/LOGFILES/production_neutral_nomaps_contract.o | sed 's/.*= //g' | sed 's/".*//' | xargs -I [] echo "[] / 0.000000006" | sed -E 's/([+-]?[0-9.]+)[eE]\+?(-?)([0-9]+)/(\1*10^\2\3)/g' | bc -l) --haps m5_production_neutral_nomaps_contract_R${repID}.haps --sample m5_production_neutral_nomaps_contract_R${repID}.sample --map 1Mb.nomap --seed ${repID} -o m5_production_neutral_nomaps_contract_R${repID}
+../new_build_mask.sh production_neutral_nomaps_contract_R${repID} 1040001 ../exon_UTR_pos.txt
+
+ /work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/RelateFileFormats \
+                 --mode FilterHapsUsingMask\
+                 --haps m5_preproduction_neutral_nomaps_contract_R${repID}.haps \
+                 --sample m5_production_neutral_nomaps_contract_R${repID}.sample \
+                 --mask production_neutral_nomaps_contract_R${repID}.mask \
+                 -o m5_production_neutral_nomaps_contract_R${repID}
+
+/work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/bin/Relate --mode All -m 3e-9 -N $(grep -ae "Rep${repID} theta pi for neutral interg/intron, size corrected = " /nas/longleaf/home/jimarsh/LOGFILES/production_neutral_nomaps_contract.o | sed 's/.*= //g' | sed 's/".*//' | xargs -I [] echo "[] / 0.000000006" | sed -E 's/([+-]?[0-9.]+)[eE]\+?(-?)([0-9]+)/(\1*10^\2\3)/g' | bc -l) --haps m5_production_neutral_nomaps_constant_R${repID}.haps --dist m5_production_neutral_nomaps_constant_R${repID}.dist --sample m5_production_neutral_nomaps_constant_R${repID}.sample --map 1Mb.nomap --seed ${repID} -o m5_production_neutral_nomaps_constant_R${repID}
 
 /work/users/j/i/jimarsh/relate_v1.1.9_x86_64_dynamic/scripts/EstimatePopulationSize/EstimatePopulationSize.sh \
               -i m5_production_neutral_nomaps_contract_R${repID} \
