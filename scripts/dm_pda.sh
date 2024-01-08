@@ -63,3 +63,71 @@ grep -wf exon_positions.txt subs_production_${y}_${q}.txt | wc -l | xargs -I [] 
 	done
 done
 
+##Pi in neutral intergenic/intronic regions
+
+
+for y in {low,mid}
+do
+        for x in {mid,high}
+        do
+                for q in {constant,expansion,contract,bottleneck,repbneck}
+                do
+echo -e "production_BGS_${x}S_${y}G_${q}"
+grep -ae "Rep." /nas/longleaf/home/jimarsh/LOGFILES/production_BGS_${x}S_${y}G_${q}.o | sed 's/.*= //' | sed 's/"//' | awk '{ tot+=$1;cnt++ } END { print tot/cnt }'
+		done
+	done
+done
+
+for y in {BGS_nopos,neutral,neutral_nomaps}
+do
+        for q in {constant,expansion,contract,bottleneck,repbneck}
+        do
+echo -e "production_${y}_${q}"
+grep -ae "Rep." /nas/longleaf/home/jimarsh/LOGFILES/production_${y}_${q}.o | sed 's/.*= //' | sed 's/"//' | awk '{ tot+=$1;cnt++ } END { print tot/cnt }'
+	done
+done
+
+##Pi in exon regions
+
+#grep -ae g3 production_neutral_nomaps_bottleneck.o | sort | uniq | sed 's/.*g3, /1\t/' | sed 's/, /\t/' | sed 's/).*//' | sort -nk2 > slim_exons.bed
+
+#module load samtools
+#module load vcftools
+#module load bedtools
+#
+#for y in {low,mid}
+#do
+#	for x in {mid,high}
+#	do
+#		for q in {constant,expansion,contract,bottleneck,repbneck}
+#		do
+#echo ${q}
+#			for i in {1..10}
+#			do
+#bgzip ../production_BGS_${x}S_${y}G_${q}_R${i}.vcf
+#bcftools index ../production_BGS_${x}S_${y}G_${q}_R${i}.vcf.gz
+#bedtools intersect -a ../production_BGS_${x}S_${y}G_${q}_R${i}.vcf.gz -b ../../slim_exons.bed -header > g3_${i}.vcf
+#vcftools --vcf g3_${i}.vcf --site-pi --out g3_${i}
+#awk '{ sum += $NF } END { print sum / (5*314*10*113)}' g3_${i}.sites.pi >> production_BGS_${x}S_${y}G_${q}.exon.pi
+#			done
+#		done
+#	done
+#done
+#
+#for y in {BGS_nopos,neutral,neutral_nomaps}
+#do
+#	for q in {constant,expansion,contract,bottleneck,repbneck}
+#        do
+#echo ${q}
+#                for i in {1..10}
+#                do
+#bgzip ../production_${y}_${q}_R${i}.vcf
+#bcftools index ../production_${y}_${q}_R${i}.vcf.gz
+#bedtools intersect -a ../production_${y}_${q}_R${i}.vcf.gz -b ../../slim_exons.bed -header > g3_${i}.vcf
+#vcftools --vcf g3_${i}.vcf --site-pi --out g3_${i}
+#awk '{ sum += $NF } END { print sum / (5*313*113)}' g3_${i}.sites.pi >> production_${y}_${q}.exon.pi
+#                done
+#        done
+#done
+#
+#lh | grep production.*pi | sed 's/.* //' | while read line; do echo ${line}; awk '{ tot+=$1;cnt++ } END { print tot/cnt }' ${line}; done
