@@ -1,0 +1,1596 @@
+---
+title: "production_plots"
+author: "Jacob Marsh"
+date: "2023-08-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(patchwork)
+library(tidyverse)
+setwd("/Users/jmarsh96/Desktop/ARG/re_recoals")
+#setwd("/Users/jmarsh96/Desktop/ARG/relate_pdf_out/productionbox/production_recoals/")
+replicates <- 10
+directory <- './'
+```
+
+```{r Neutral Constant function}
+build_constantplot <- function(prefix, replicates = 10){
+
+constant_Ne <- tibble()
+
+for (i in 1:replicates){
+  constant_Ne  <- readr::read_csv(file = base::paste0("m5_production_", prefix, "_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(constant_Ne, (.)) 
+  
+b1 <- (constant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (constant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+constant_Ne <- constant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  constant_Ne %>% 
+                    filter(Ne == (
+                      filter(constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(constant_Ne$nGen[constant_Ne$nGen > max(converging)])
+
+constant_plot <- ggplot2::ggplot(constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0(prefix, "_constant"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+           ggplot2::geom_hline(yintercept = 20000, colour = "black", linewidth = 0.5)
+
+return(constant_plot)
+}
+#neutral_constant_plot
+```
+
+```{r Demography: Expansion function}
+build_expandplot <- function(prefix, replicates = 10, colour = "black"){
+  
+expand_Ne <- tibble()
+
+for (i in 1:replicates){
+  expand_Ne  <- readr::read_csv(file = base::paste0("m5_production_", prefix, "_expansion_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(expand_Ne, (.)) 
+  
+b1 <- (expand_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (expand_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+expand_Ne <- expand_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  expand_Ne %>% 
+                    filter(Ne == (
+                      filter(expand_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(expand_Ne$nGen[expand_Ne$nGen > max(converging)])
+
+expand_Tline <- tibble(nGen = seq(0,converged,1000)) %>% dplyr::mutate(Truth = ifelse(nGen < 20000,(20000 + (0.0002*(20000-nGen)^2)), 20000))
+
+max(expand_Tline$Truth)
+
+expand_plot <- ggplot2::ggplot(expand_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = Replicate), alpha = 0.2, color = colour) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne), color = colour, se = F) +
+#  ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+#                                      limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0(prefix, "_expand"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = expand_Tline, aes(y = Truth, x = nGen), color = "black")
+
+return(expand_plot)
+}
+```
+
+```{r Demography: Contract function}
+build_contractplot <- function(prefix, replicates = 10){
+contract_Ne <- tibble()
+
+for (i in 1:replicates){
+  contract_Ne  <- readr::read_csv(file = base::paste0("m5_production_", prefix, "_contract_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(contract_Ne, (.)) 
+
+b1 <- (contract_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (contract_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+contract_Ne <- contract_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+converging <- c(converging, 
+                  contract_Ne %>% 
+                    filter(Ne == (
+                      filter(contract_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(contract_Ne$nGen[contract_Ne$nGen > max(converging)])
+
+contract_Tline <- tibble(nGen = seq(0,converged,10)) %>% dplyr::mutate(Truth = ifelse(nGen <= 20000,(20000 - (0.00004*(20000-nGen)^2)), 20000))
+
+contract_plot <- ggplot2::ggplot(contract_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  #ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+  #                                    limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0(prefix, "_contraction"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = neutral_contract_Tline, aes(y = Truth, x = nGen), color = "black")
+
+return(contract_plot)
+}
+#build_contractplot(prefix = "neutral", replicates = 9) + neutral_contract_plot
+#neutral_contract_plot
+```
+
+```{r Demography: Bottleneck function}
+build_bottleneckplot <- function(prefix, replicates = 10){
+  
+bottleneck_Ne <- tibble()
+
+for (i in 1:replicates){
+  bottleneck_Ne  <- readr::read_csv(file = base::paste0("m5_production_", prefix, "_bottleneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(bottleneck_Ne, (.)) 
+  
+b1 <- (bottleneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (bottleneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+bottleneck_Ne <- bottleneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  bottleneck_Ne %>% 
+                    filter(Ne == (
+                      filter(bottleneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(bottleneck_Ne$nGen[bottleneck_Ne$nGen > max(converging)])
+
+bottleneck_Tline <- tibble(nGen = seq(0,converged,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000))
+
+bottleneck_plot <- ggplot2::ggplot(bottleneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  #ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+  #                                    limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0(prefix, "_bottleneck"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = bottleneck_Tline, aes(y = Truth, x = nGen), color = "black")
+
+return(bottleneck_plot)
+}
+
+#build_bottleneckplot(prefix = "neutral", replicates = 9)# + neutral_contract_plot
+```
+
+```{r Demography: Repbneck function}
+build_repbneckplot <- function(prefix, replicates = 10){
+  
+repbneck_Ne <- tibble()
+
+for (i in 1:replicates){
+  repbneck_Ne  <- readr::read_csv(file = base::paste0("m5_production_", prefix, "_repbneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(repbneck_Ne, (.)) 
+  
+b1 <- (repbneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (repbneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+repbneck_Ne <- repbneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 2:replicates){
+
+converging <- c(converging, 
+                  repbneck_Ne %>% 
+                    filter(Ne == (
+                      filter(repbneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(repbneck_Ne$nGen[repbneck_Ne$nGen > max(converging)])
+
+repbneck_Tline <- tibble(nGen = seq(0,converged,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000)) %>%
+  dplyr::mutate(Truth = ifelse(nGen >= 40000 & nGen <= 60000,
+                               (2000 + (0.000045*(60000-nGen)^2)),
+                               Truth))
+                                                                             
+repbneck_plot <- ggplot2::ggplot(repbneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+#  ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+#                                      limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 80000)) +
+  ggplot2::ggtitle(base::paste0(prefix, "_repbneck"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = repbneck_Tline, aes(y = Truth, x = nGen), color = "black")
+
+return(repbneck_plot)
+}
+```
+
+```{r Huber Demography: None}
+huber_nopos_constant_Ne <- tibble()
+replicates <- 10
+
+for (i in 1:replicates){
+  huber_nopos_constant_Ne  <- readr::read_csv(file = base::paste0("m5_production_huber_BGS_nopos_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_nopos_constant_Ne, (.)) 
+  
+b1 <- (huber_nopos_constant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_nopos_constant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_nopos_constant_Ne <- huber_nopos_constant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  huber_nopos_constant_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_nopos_constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_nopos_constant_Ne$nGen[huber_nopos_constant_Ne$nGen > max(converging)])
+
+huber_nopos_constant_plot <- ggplot2::ggplot(huber_nopos_constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("Huber_nopos_constant"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+           ggplot2::geom_hline(yintercept = 20000, colour = "black", linewidth = 0.5)
+
+huber_nopos_constant_plot
+```
+
+```{r Huber Demography: Expansion}
+huber_nopos_expand_Ne <- tibble()
+replicates <- 10
+
+for (i in 1:replicates){
+  huber_nopos_expand_Ne  <- readr::read_csv(file = base::paste0("m5_production_huber_BGS_nopos_expansion_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_nopos_expand_Ne, (.)) 
+  
+b1 <- (huber_nopos_expand_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_nopos_expand_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_nopos_expand_Ne <- huber_nopos_expand_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  huber_nopos_expand_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_nopos_expand_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_nopos_expand_Ne$nGen[huber_nopos_expand_Ne$nGen > max(converging)])
+
+huber_nopos_expand_Tline <- tibble(nGen = seq(0,converged,1000)) %>% dplyr::mutate(Truth = ifelse(nGen < 20000,(20000 + (0.0002*(20000-nGen)^2)), 20000))
+
+max(huber_nopos_expand_Tline$Truth)
+
+huber_nopos_expand_plot <- ggplot2::ggplot(huber_nopos_expand_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+#  ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+#                                      limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("huber_nopos_expand"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = huber_nopos_expand_Tline, aes(y = Truth, x = nGen), color = "black")
+
+huber_nopos_expand_plot
+```
+
+```{r Huber Demography: Contract}
+huber_nopos_contract_Ne <- tibble()
+
+for (i in 1:replicates){
+  huber_nopos_contract_Ne  <- readr::read_csv(file = base::paste0("m5_production_huber_BGS_nopos_contract_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_nopos_contract_Ne, (.)) 
+
+b1 <- (huber_nopos_contract_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_nopos_contract_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_nopos_contract_Ne <- huber_nopos_contract_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+converging <- c(converging, 
+                  huber_nopos_contract_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_nopos_contract_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_nopos_contract_Ne$nGen[huber_nopos_contract_Ne$nGen > max(converging)])
+
+huber_nopos_contract_Tline <- tibble(nGen = seq(0,converged,10)) %>% dplyr::mutate(Truth = ifelse(nGen <= 20000,(20000 - (0.00004*(20000-nGen)^2)), 20000))
+
+huber_nopos_contract_plot <- ggplot2::ggplot(huber_nopos_contract_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  #ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+  #                                    limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("huber_nopos_contraction"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = huber_nopos_contract_Tline, aes(y = Truth, x = nGen), color = "black")
+
+huber_nopos_contract_plot
+```
+
+```{r Huber Demography: Bottleneck}
+replicates <- 10
+huber_nopos_bottleneck_Ne <- tibble()
+
+for (i in 1:replicates){
+  huber_nopos_bottleneck_Ne  <- readr::read_csv(file = base::paste0("m5_production_huber_BGS_nopos_bottleneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_nopos_bottleneck_Ne, (.)) 
+  
+b1 <- (huber_nopos_bottleneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_nopos_bottleneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_nopos_bottleneck_Ne <- huber_nopos_bottleneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  huber_nopos_bottleneck_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_nopos_bottleneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_nopos_bottleneck_Ne$nGen[huber_nopos_bottleneck_Ne$nGen > max(converging)])
+
+huber_nopos_bottleneck_Tline <- tibble(nGen = seq(0,converged,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000))
+
+huber_nopos_bottleneck_plot <- ggplot2::ggplot(huber_nopos_bottleneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  #ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+  #                                    limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("huber_nopos_bottleneck"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = huber_nopos_bottleneck_Tline, aes(y = Truth, x = nGen), color = "black")
+
+huber_nopos_bottleneck_plot
+```
+
+```{r Huber Demography: Repbneck plot}
+huber_nopos_repbneck_Ne <- tibble()
+
+for (i in 1:7){
+  huber_nopos_repbneck_Ne  <- readr::read_csv(file = base::paste0("repb7/m5_production_huber_BGS_nopos_repbneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_nopos_repbneck_Ne, (.)) 
+  
+b1 <- (huber_nopos_repbneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_nopos_repbneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_nopos_repbneck_Ne <- huber_nopos_repbneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 2:7){
+
+converging <- c(converging, 
+                  huber_nopos_repbneck_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_nopos_repbneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_nopos_repbneck_Ne$nGen[huber_nopos_repbneck_Ne$nGen > max(converging)])
+
+huber_nopos_repbneck_Tline <- tibble(nGen = seq(0,converged,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000)) %>%
+  dplyr::mutate(Truth = ifelse(nGen >= 40000 & nGen <= 60000,
+                               (2000 + (0.000045*(60000-nGen)^2)),
+                               Truth))
+                                                                             
+huber_nopos_repbneck_plot <- ggplot2::ggplot(huber_nopos_repbneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+#  ggplot2::scale_x_log10(breaks = 10^(2:floor(log10(converged))),
+#                                      limits = c(100, converged)
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+    ) +
+  ggplot2::scale_y_log10(limits = c(300, 80000)) +
+  ggplot2::ggtitle(base::paste0("huber_nopos_huber_nopos_repbneck"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = huber_nopos_repbneck_Tline, aes(y = Truth, x = nGen), color = "black")
+
+huber_nopos_repbneck_plot
+```
+
+```{r Johri Demography: None}
+johri_nopos_constant_Ne <- tibble()
+replicates <- 10
+
+for (i in c(1:5,7:10)){
+  johri_nopos_constant_Ne  <- readr::read_csv(file = base::paste0("m5_production_johri_BGS_nopos_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(johri_nopos_constant_Ne, (.)) 
+  
+b1 <- (johri_nopos_constant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (johri_nopos_constant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+johri_nopos_constant_Ne <- johri_nopos_constant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in c(1:5,7:10)){
+
+converging <- c(converging, 
+                  johri_nopos_constant_Ne %>% 
+                    filter(Ne == (
+                      filter(johri_nopos_constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(johri_nopos_constant_Ne$nGen[johri_nopos_constant_Ne$nGen > max(converging)])
+
+johri_nopos_constant_plot <- ggplot2::ggplot(johri_nopos_constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("johri_nopos_constant"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+           ggplot2::geom_hline(yintercept = 20000, colour = "black", linewidth = 0.5)
+
+johri_nopos_constant_plot
+```
+
+```{r Huber Demography: None}
+huber_lowS_midG_constant_Ne <- tibble()
+replicates <- 10
+
+for (i in 1:replicates){
+  huber_lowS_midG_constant_Ne  <- readr::read_csv(file = base::paste0("m5_production_huber_BGS_lowS_midG_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(huber_lowS_midG_constant_Ne, (.)) 
+  
+b1 <- (huber_lowS_midG_constant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (huber_lowS_midG_constant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+huber_lowS_midG_constant_Ne <- huber_lowS_midG_constant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  huber_lowS_midG_constant_Ne %>% 
+                    filter(Ne == (
+                      filter(huber_lowS_midG_constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(huber_lowS_midG_constant_Ne$nGen[huber_lowS_midG_constant_Ne$nGen > max(converging)])
+
+huber_lowS_midG_constant_plot <- ggplot2::ggplot(huber_lowS_midG_constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, colour = Replicate)) +
+  ggplot2::scale_x_continuous(limits = c(0,80000)
+  ) +
+  ggplot2::scale_y_log10(limits = c(300, 100000)) +
+  ggplot2::ggtitle(base::paste0("Huber_lowS_midG_constant"))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank())  +
+  ylab("N") +
+  xlab("nGenerations from present") + 
+           ggplot2::geom_hline(yintercept = 20000, colour = "black", linewidth = 0.5)
+
+huber_lowS_midG_constant_plot
+```
+
+```{r Composite: Constant function}
+build_constantplot <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+constant_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prconstant_Ne <- tibble()
+
+for (i in 1:replicates){
+  prconstant_Ne  <- readr::read_csv(file = base::paste0(prefix, "_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prconstant_Ne, (.))
+  
+b1 <- (prconstant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prconstant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prconstant_Ne <- prconstant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe) 
+}
+constant_Ne <- dplyr::bind_rows(constant_Ne, prconstant_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  constant_Ne %>% 
+                    filter(Ne == (
+                      filter(constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(constant_Ne$nGen[constant_Ne$nGen > max(converging)])
+
+constant_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = ifelse(species == "human", 20000, 1000000))
+
+constant_Ne <- constant_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+constant_plot <- ggplot2::ggplot(constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, 5.2e6)) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank(),
+                 axis.title.x = element_blank())  +
+  ylab("N") +
+#  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = constant_Tline, aes(y = Truth, x = nGen), color = "black") +
+  ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
+
+return(constant_plot)
+}
+```
+
+```{r Composite: Expand function}
+build_expansionplot <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+expansion_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prexpansion_Ne <- tibble()
+
+for (i in 1:replicates){
+  prexpansion_Ne  <- readr::read_csv(file = base::paste0(prefix, "_expansion_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prexpansion_Ne, (.))
+  
+b1 <- (prexpansion_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prexpansion_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prexpansion_Ne <- prexpansion_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe)
+}
+expansion_Ne <- dplyr::bind_rows(expansion_Ne, prexpansion_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  expansion_Ne %>% 
+                    filter(Ne == (
+                      filter(expansion_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(expansion_Ne$nGen[expansion_Ne$nGen > max(converging)])
+
+if(species == "human"){
+expansion_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = ifelse(nGen < 20000,(20000 + (0.0002*(20000-nGen)^2)), 20000))
+}else{
+ expansion_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = ifelse(nGen < 1000000,(1000000 + (0.000004*(1000000-nGen)^2)), 1000000)) 
+}
+
+expansion_Ne <- expansion_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+expansion_plot <- ggplot2::ggplot(expansion_Ne %>% mutate(Nesquish = oob_squish(expansion_Ne$Ne, range = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 10000000))))) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Nesquish, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Nesquish, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(0, 100000000)) +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank(),
+                 axis.title.x = element_blank())  +
+  ylab("N") +
+#  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = expansion_Tline, aes(y = Truth, x = nGen), color = "black") +
+  ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
+
+return(expansion_plot)
+}
+```
+
+```{r Composite: Contract function}
+build_contractplot <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+contract_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prcontract_Ne <- tibble()
+
+for (i in 1:replicates){
+  prcontract_Ne  <- readr::read_csv(file = base::paste0(prefix, "_contract_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prcontract_Ne, (.))
+  
+b1 <- (prcontract_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prcontract_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prcontract_Ne <- prcontract_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe) 
+}
+contract_Ne <- dplyr::bind_rows(contract_Ne, prcontract_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  contract_Ne %>% 
+                    filter(Ne == (
+                      filter(contract_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(contract_Ne$nGen[contract_Ne$nGen > max(converging)])
+
+if(species == "human"){
+contract_Tline <- tibble(nGen = seq(0,800000,10)) %>% dplyr::mutate(Truth = ifelse(nGen <= 20000,(20000 - (0.00004*(20000-nGen)^2)), 20000))
+}else{
+ contract_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = ifelse(nGen < 1000000,(1000000 - (0.0000008*(1000000-nGen)^2)), 1000000)) 
+}
+
+contract_Ne <- contract_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+contract_plot <- ggplot2::ggplot(contract_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(0, 100000000)) +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank(),
+                 axis.title.x = element_blank())  +
+  ylab("N") +
+#  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = contract_Tline, aes(y = Truth, x = nGen), color = "black") +
+  ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
+
+
+return(contract_plot)
+}
+```
+
+```{r Composite: Bottleneck function}
+build_bottleneckplot <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+bottleneck_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prbottleneck_Ne <- tibble()
+
+for (i in 1:replicates){
+  prbottleneck_Ne  <- readr::read_csv(file = base::paste0(prefix, "_bottleneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prbottleneck_Ne, (.))
+  
+b1 <- (prbottleneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prbottleneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prbottleneck_Ne <- prbottleneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe) 
+}
+bottleneck_Ne <- dplyr::bind_rows(bottleneck_Ne, prbottleneck_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  bottleneck_Ne %>% 
+                    filter(Ne == (
+                      filter(bottleneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(bottleneck_Ne$nGen[bottleneck_Ne$nGen > max(converging)])
+
+if(species == "human"){
+bottleneck_Tline <- tibble(nGen = seq(0,100000,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000))
+}else{
+ bottleneck_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% 
+   dplyr::mutate(Truth = ifelse(nGen <= 1000000,(100000 + (0.0000009*(1000000-nGen)^2)), 1000000)) 
+}
+
+bottleneck_Ne <- bottleneck_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+bottleneck_plot <- ggplot2::ggplot(bottleneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(0, 100000000)) +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank()#,
+                 #axis.title.x = element_blank()
+                 )  +
+  ylab("N") +
+  xlab("Generations from present") + 
+  ggplot2::geom_line(data = bottleneck_Tline, aes(y = Truth, x = nGen), color = "black")  +
+  ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
+
+return(bottleneck_plot)
+}
+```
+
+```{r Composite: Repbneck function}
+build_repbneckplot <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+repbneck_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prrepbneck_Ne <- tibble()
+
+for (i in 1:replicates){
+  prrepbneck_Ne  <- readr::read_csv(file = base::paste0(prefix, "_repbneck_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prrepbneck_Ne, (.))
+  
+b1 <- (prrepbneck_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prrepbneck_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prrepbneck_Ne <- prrepbneck_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe) 
+}
+repbneck_Ne <- dplyr::bind_rows(repbneck_Ne, prrepbneck_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  repbneck_Ne %>% 
+                    filter(Ne == (
+                      filter(repbneck_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(repbneck_Ne$nGen[repbneck_Ne$nGen > max(converging)])
+
+if(species == "human"){
+repbneck_Tline <- tibble(nGen = seq(0,100000,10)) %>% 
+  dplyr::mutate(Truth = ifelse(nGen <= 20000,(2000 + (0.000045*(20000-nGen)^2)), 20000)) %>%
+  dplyr::mutate(Truth = ifelse(nGen >= 40000 & nGen <= 60000,
+                               (2000 + (0.000045*(60000-nGen)^2)),
+                               Truth))
+}else{
+ repbneck_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% 
+   dplyr::mutate(Truth = ifelse(nGen <= 1000000,(100000 + (0.0000009*(1000000-nGen)^2)), 1000000)) %>%
+   dplyr::mutate(Truth = ifelse(nGen >= 2000000 & nGen <= 3000000,
+                               (100000 + (0.0000009*(3000000-nGen)^2)),
+                               Truth))
+}
+
+repbneck_Ne <- repbneck_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+repbneck_plot <- ggplot2::ggplot(repbneck_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(0, 100000000)) +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank()#,
+                # axis.title.x = element_blank()
+                )  +
+  ylab("N") +
+  xlab("Generations from present") + 
+  ggplot2::geom_line(data = repbneck_Tline, aes(y = Truth, x = nGen), color = "black") +
+  ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
+
+return(repbneck_plot)
+}
+
+```
+
+```{r (oldallplots)}
+neutral <- neutral_constant_plot + 
+  neutral_expand_plot + 
+  neutral_contract_plot + 
+  neutral_bottleneck_plot + 
+  neutral_repbneck_plot
+
+neutral
+
+huber_nopos <- huber_nopos_constant_plot + # B = 0.72
+  huber_nopos_expand_plot +  # B = 0.77
+  huber_nopos_contract_plot + # B = 0.67
+  huber_nopos_bottleneck_plot + # B = 0.73
+  huber_nopos_repbneck_plot # B = 0.78
+
+huber_nopos
+
+huber_nopos_constant_plot + 
+  johri_nopos_constant_plot # B = 0.91
+
+huber_nopos_constant_plot +  
+  huber_lowS_midG_constant_plot # B = 0.71
+```
+
+```{r Plotting All}
+setwd("/Users/jmarsh96/Desktop/ARG/prod_rec/")
+
+Neutral <- 
+  build_constantplot("neutral") + 
+  build_expandplot("neutral") +
+  build_contractplot("neutral", replicates = 9) +
+  build_bottleneckplot("neutral") +
+  build_repbneckplot("neutral")
+
+Johri_Huber_constant <- 
+  build_constantplot("johri_BGS_nopos", replicates = 9) +
+  build_constantplot("huber_BGS_nopos")
+
+Huber_BGS_only <-
+  build_constantplot("huber_BGS_nopos") +
+  build_expandplot("huber_BGS_nopos") +
+  build_contractplot("huber_BGS_nopos") +
+  build_bottleneckplot("huber_BGS_nopos") +
+  build_repbneckplot("huber_BGS_nopos", replicates = 8) 
+
+Huber_lowS_lowG <-
+  build_constantplot("huber_BGS_lowS_lowG") +
+  build_expandplot("huber_BGS_lowS_lowG") +
+  build_contractplot("huber_BGS_lowS_lowG") +
+  build_bottleneckplot("huber_BGS_lowS_lowG") +
+  build_repbneckplot("huber_BGS_lowS_lowG")
+  
+Huber_lowS_midG <-
+  build_constantplot("huber_BGS_lowS_midG") +
+  build_expandplot("huber_BGS_lowS_midG", replicates = 9) +
+  build_contractplot("huber_BGS_lowS_midG", replicates = 9) +
+  build_bottleneckplot("huber_BGS_lowS_midG") +
+  build_repbneckplot("huber_BGS_lowS_midG")  
+
+Huber_lowS_highG <-
+  build_constantplot("huber_BGS_lowS_highG") +
+  build_expandplot("huber_BGS_lowS_highG") +
+  build_contractplot("huber_BGS_lowS_highG") +
+  build_bottleneckplot("huber_BGS_lowS_highG") +
+  build_repbneckplot("huber_BGS_lowS_highG")  
+
+Huber_highS_lowG <-
+  build_constantplot("huber_BGS_highS_lowG") +
+  build_expandplot("huber_BGS_highS_lowG") +
+  build_contractplot("huber_BGS_highS_lowG") +
+  build_bottleneckplot("huber_BGS_highS_lowG") +
+  build_repbneckplot("huber_BGS_highS_lowG")
+
+Huber_highS_midG <-
+  build_constantplot("huber_BGS_highS_midG") #+
+#  build_expandplot("huber_BGS_highS_midG") +
+#  build_contractplot("huber_BGS_highS_midG") +
+#  build_bottleneckplot("huber_BGS_highS_midG") +
+#  build_repbneckplot("huber_BGS_highS_midG")
+
+Huber_highS_highG <-
+  build_constantplot("huber_BGS_highS_highG") +
+  build_expandplot("huber_BGS_highS_highG", colour = "red") +
+  build_contractplot("huber_BGS_highS_highG") +
+  build_bottleneckplot("huber_BGS_highS_highG") +
+  build_repbneckplot("huber_BGS_highS_highG")
+
+Neutral
+Johri_Huber_constant
+Huber_BGS_only
+Huber_lowS_lowG
+Huber_lowS_midG
+Huber_lowS_highG
+Huber_highS_lowG
+Huber_highS_midG
+Huber_highS_highG
+```
+
+```{r Tables}
+library(grid)
+library(gridExtra)
+library(ggpp)
+
+preT1 <- tibble( "Colours" = c("Teal", "Green", "Red", "Grey"),
+  "Parameters" = c("Neutral", "Neutral no maps", "BGS (Johri DFE)", "BGS (Huber DFE)"),
+       "Constant" = c("1.00","1.00","0.86","0.69"), 
+       "Expand" = c("1.00","1.00","0.87","0.73"), 
+       "Contract" = c("1.00","1.00","0.84","0.62"), 
+       "Bottleneck" = c("1.00","1.00","0.87","0.70"),
+       "Repbneck" = c("1.00","1.00","0.90","0.75")) #%>% column_to_rownames("Parameters")# %>% as_data_frame()
+
+T1 <- gridExtra::tableGrob(preT1,
+                          theme = ggpp::ttheme_gtstripes(
+  colhead = list(bg_params = list(fill = "white"),
+                 fg_params = list(fontface = 2L)),
+  rowhead = list(bg_params = list(fill = c(NA,rep("white", 4))),
+                 fg_params = list(fontface = 2L))
+))
+
+ggplot() + T1 + theme_minimal()
+
+#header <- tableGrob("Pi/Pi(0)")
+
+#jn <- gtable_combine(header, T1, along = 2)
+
+#jn$widths <- rep(max(jn$widths), length(jn$widths))
+
+#jn$layout[1, c("l", "r")] <- list(c(2), c(6))
+
+#ggplot() + jn + theme_minimal()
+
+
+
+```
+
+```{r misc}
+setwd("/Users/jmarsh96/Desktop/ARG/dec4_recoals/")
+layout <- "AF
+BC
+DE"
+
+
+Mb1_only <-   build_constantplot(
+    prefixes = c("m5_production_neutral", "m5_production_BGS_nopos" , "m5_production_BGS_midS_midG", "m5_production_BGS_highS_midG"),
+    colours = c("light blue", "gray", "light green", "coral2"),
+    title = "Only remove non-M5 mutations", species = "drosoph")
+Mb1_only
+Mb1_only80k
+Mb1_only8000
+
+
+Mb1_5_10 <- build_constantplot(
+    prefixes = c("m5_production_neutral", 
+#                 "m5_production_BGS_nopos" , 
+#                 "m5_preprod_5Mb_BGS", 
+#                 "m5_preprod_5Mb_neutral", 
+                 "m5_preprod_10Mb_neutral"),
+    colours = c("light blue", 
+#                "gray", 
+#                "orange", 
+#                "gold", 
+                "purple"),
+    title = "1Mb, 5Mb, 10Mb",species = "drosoph")
+Mb1_5_10
+Mb1_5_1080k
+Mb1_5_108000
+#pi/pi0 = 0.5 for 5Mb 300X,  0.42 for 10Mb 200X, 0.77 for 1Mb 100X
+
+setwd("/Users/jmarsh96/Desktop/ARG/relate_pdf_out/temp10mb/10Mb_recoals/")
+Mb10 <-   build_constantplot(
+    prefixes = c("m5_preprod_10Mb_neutral", "preprod_10Mb_neutral", "half_preprod_10Mb_neutral"),
+    colours = c("orange", "purple", "green"),
+    title = "10Mb, m5 vs m1+m5 vs halved_m1+m5", species = "drosoph")
+Mb10
+
+
+setwd("/Users/jmarsh96/Desktop/ARG/maskbox/")
+mask6 <-   build_constantplot(
+    prefixes = c(#"m5_production_neutral", 
+                 #"m1_neutral", 
+                 #"mask_m1_neutral", 
+                 #"m5_mask_BGS_nopos", 
+                 #"m5_production_BGS_nopos", 
+       #          "m5_renewscriptmask_BGS_nopos", 
+                 "m5_neutral_renewscriptmask_BGS_nopos", 
+                 "allmuts_renewscriptmask_BGS_nopos",
+                 "m5_rerenewscriptmask_BGS_nopos"),
+    colours = c(#"orange", "purple", "green", 
+      #"red", 
+      "grey", 
+      "red", "light blue", "light green"),
+    title = "m5, m1+m5 vs m1_mask", species = "drosoph")
+mask6
+
+build_expansionplot(
+    prefixes = c("m5_production_BGS_midS_lowG_TEST"),
+    colours = "red",
+    title = "TEEST", species = "drosoph")
+
+
+
+setwd("/Users/jmarsh96/Desktop/ARG/precoal/")
+
+new <- build_constantplot(
+    prefixes = c("m5_production5_BGS_midS_lowG", 
+                 #"m5_production5_neutral", 
+                 #"mold_m5_production5_neutral",
+                 "old_m5_production5_BGS_midS_lowG"), 
+                 #"old_m5_production5_neutral"),
+    colours = c("red", "purple"),
+                #"orange", "purple"),
+    title = "Masking Exons/UTRs and conserved % in intron/interg - BGS", species = "drosoph")
+
+
+
+build_constantplot(
+    prefixes = c("m5_production_neutral", "m5_production_BGS_nopos",
+    colours = c("orange", "purple"),
+    title = "Neutral, BGS, midS_lowG",species = "drosoph") + q
+
+    
+setwd("/Users/jmarsh96/Desktop/ARG/constantbox")
+
+build_constantplot(
+    prefixes = c("m5_production5_neutral", "m5_production5_BGS_nopos", "m5_production5_BGS_jensen", "m5_production5_BGS_midS_lowG", "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG"),
+    colours = c("orange", "purple", "green", "grey", "blue", "coral2", "yellow"),
+    title = "Neutral, BGS, midS_lowG",species = "drosoph")
+
+
+```
+
+```{r Figure 1; Human}
+setwd("/Users/jmarsh96/Desktop/ARG/re_recoals/")
+
+layout <- "AF
+BC
+DE"
+
+Figure1 <- 
+  build_constantplot(
+    prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
+    colours = c("light blue", "light green", "grey", "#997950"),
+    title = "Constant population size") +
+  build_expansionplot(
+    prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
+    colours = c("light blue", "light green", "grey", "#997950"),
+    title = "Recent 5-fold expansion") +
+  build_contractplot(
+    prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
+    colours = c("light blue", "light green", "grey", "#997950"),
+    title = "Recent 5-fold contraction") +
+  build_bottleneckplot(
+    prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
+    colours = c("light blue", "light green", "grey", "#997950"),
+    title = "10-fold bottleneck & recovery") +
+  build_repbneckplot(
+    prefixes = c("m5_re_production_neutral",
+      "m5_re_production_neutral_nomaps",
+      "m5_re_production_huber_BGS_nopos",
+      "m5_re_production_johri_BGS_nopos"),
+    colours = c("light blue", "light green", "grey", "#997950"),
+    title = "Repeated 10-fold bottleneck & recovery"
+  ) +
+  guide_area() +
+  plot_layout(design = layout, guides= "collect")
+  
+Figure1
+
+Figure2 <- 
+  build_constantplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Constant population size") +
+  build_expansionplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Recent 5-fold expansion") +
+  build_contractplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Recent 5-fold contraction") +
+  build_bottleneckplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "10-fold bottleneck & recovery") +
+  build_repbneckplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Repeated 10-fold bottleneck & recovery") +
+  guide_area() +
+  plot_layout(design = layout, 
+              guides= "collect")
+
+Figure2
+
+Figure3 <- 
+  build_constantplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Constant population size") +
+  build_expansionplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Recent 5-fold expansion") +
+  build_contractplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Recent 5-fold contraction") +
+  build_bottleneckplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "10-fold bottleneck & recovery") +
+  build_repbneckplot(
+    prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
+    colours = c("grey", "forest green", "blue", "purple"),
+    title = "Repeated 10-fold bottleneck & recovery") +
+  guide_area() +
+  plot_layout(design = layout, guides= "collect")
+
+Figure1
+ggsave('preFigure1.pdf',
+       Figure1, 
+       device = 'pdf', 
+       dpi = 1800,
+       height = 150,
+       width = 300,
+       units = "mm")
+
+Figure2
+ggsave('preFigure2.pdf',
+       Figure2, 
+       device = 'pdf', 
+       dpi = 1800,
+       height = 150,
+       width = 300,
+       units = "mm")
+
+Figure3
+ggsave('preFigure3.pdf',
+       Figure3, 
+       device = 'pdf', 
+       dpi = 1800,
+       height = 150,
+       width = 300,
+       units = "mm")
+
+```
+
+```{r Figure 4; Drosoph}
+setwd("/Users/jmarsh96/Desktop/ARG/finsport")
+layout <- "AF
+BC
+DE"
+
+Figure4 <- 
+  build_constantplot(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos", "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", #"dark blue", 
+                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    title = "Constant population size",species = "drosoph") +
+  build_expansionplot(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", #"dark blue", 
+                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    title = "Recent 5-fold expansion",species = "drosoph") +
+  build_contractplot(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", #"dark blue", 
+                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    title = "Recent 5-fold contraction",species = "drosoph") +
+  build_bottleneckplot(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", #"dark blue", 
+                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    title = "10-fold bottleneck & recovery",species = "drosoph") +
+  build_repbneckplot(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", #"dark blue", 
+                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    title = "Repeated 10-fold bottleneck & recovery",species = "drosoph") +
+  guide_area() +
+  plot_layout(design = layout, guides= "collect")
+
+Figure4
+ggsave('preFigure4.pdf',
+       Figure4, 
+       device = 'pdf', 
+       dpi = 1800,
+       height = 150,
+       width = 300,
+       units = "mm")
+
+```
+
+```{r Figure S2; Drosoph}
+build_constantplot2 <- function(prefixes, replicates = 10, colours = "black", title, species = "human"){
+  
+constant_Ne <- tibble()
+    
+for (prefix in prefixes){  
+  
+prconstant_Ne <- tibble()
+
+for (i in 1:replicates){
+  prconstant_Ne  <- readr::read_csv(file = base::paste0(prefix, "_constant_R",i,'.recoal'),
+                             col_names = F, show_col_types = F) %>%
+    t() %>% tibble::as_tibble() %>%
+    dplyr::rename("nGen" = "V1", "Coal" = "V2") %>%
+    dplyr::mutate(!!paste0("R",i) := 0.5 / Coal) %>%
+    dplyr::select(-Coal)  %>%
+    tidyr::gather("Replicate", "Ne", 2) %>% 
+    base::rbind(prconstant_Ne, (.))
+  
+b1 <- (prconstant_Ne %>% filter(nGen == 71968.6) %>% slice(1) %>% pull(Ne))
+b2 <- (prconstant_Ne %>% filter(nGen == 100000) %>% slice(1) %>% pull(Ne))
+endNe <- b1 + ((b2 - b1) / (100000 - 71968.6)) * (80000 - 71968.6)
+prconstant_Ne <- prconstant_Ne %>% add_row(nGen = 80000, Replicate = paste0("R",i), Ne = endNe) 
+}
+constant_Ne <- dplyr::bind_rows(constant_Ne, prconstant_Ne %>% dplyr::mutate(pfix = prefix) %>% mutate(newcol = paste0(Replicate, "_", pfix))) 
+}
+
+converging <- NULL
+  
+for (i in 1:replicates){
+
+converging <- c(converging, 
+                  constant_Ne %>% 
+                    filter(Ne == (
+                      filter(constant_Ne, Replicate == paste0("R",i)) %>% 
+                        count(Ne) %>% 
+                        arrange(desc(n)) %>% 
+                        slice(1) %>% 
+                        pull(Ne))) %>% 
+                    pull(nGen) %>% 
+                    min())
+}
+
+converged <- min(constant_Ne$nGen[constant_Ne$nGen > max(converging)])
+
+constant_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = 1000000)
+
+constant_Ne <- constant_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
+
+constant_plot2 <- ggplot2::ggplot(constant_Ne) +
+  annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
+  ggplot2::scale_x_continuous(limits = c(0, 8000)) +
+  ggplot2::scale_colour_manual(values = colours) +
+  ggplot2::scale_y_log10(limits = c(1e4, 1e7))  +
+  ggplot2::ggtitle(base::paste0(title))  +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
+                 panel.grid.minor = ggplot2::element_blank(),
+                 axis.title.x = element_blank())  +
+  ylab("N") +
+#  xlab("nGenerations from present") + 
+  ggplot2::geom_line(data = constant_Tline, aes(y = Truth, x = nGen), color = "black")
+
+return(constant_plot2)
+}
+s
+setwd("/Users/jmarsh96/Desktop/ARG/finsport")
+FigureS2 <-   build_constantplot2(
+    prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
+                 "m5_production5_BGS_nopos", "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
+                 "m5_production5_BGS_jensen"),
+    colours = c("light blue", "dark blue", "gray", "light green", "coral2", "brown", "orange", "purple"),
+    title = "Constant population size",species = "drosoph")
+FigureS2
+```
+

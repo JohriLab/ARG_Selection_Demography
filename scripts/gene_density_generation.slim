@@ -54,8 +54,8 @@ for (iteration in 1:10000){
     gene_block_len = UTR3 + UTR5 + full_gene_len;    
     
     
-    num_bins = 10; //Number of 1Mb segments
-    bin_size = 100000; //Size of bins (1Mb)
+    num_bins = 50; //Number of 100Kb segments
+    bin_size = 100000; //Size of bins (100Kb)
     
     ngenes = rnorm(num_bins, 14.69231, 7.541696);
     for (i in 0:(size(ngenes)-1)){
@@ -63,7 +63,7 @@ for (iteration in 1:10000){
 	ngenes[i] = ifelse(ngenes[i]*gene_block_len  > bin_size, asInteger(bin_size/gene_block_len), asInteger(ngenes[i])); // Max genes per block (rounded down)
 	}
 	ngenes=(asInteger(ngenes));
-	if(sum(ngenes)==113){
+	if(sum(ngenes)==565){
 	print(iteration);
 	break;
 	}}
@@ -72,4 +72,5 @@ for (iteration in 1:10000){
 	ngenes;
 	
 	sum(ngenes);
-//On iteration 6 under setSeed(1), ngenes == 113
+//For 1Mb, on iteration 6 under setSeed(1), ngenes == 113
+//For 5Mb, on iteration 82 under setSeed(1), ngenes == 565
