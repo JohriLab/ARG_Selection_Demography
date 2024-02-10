@@ -1,0 +1,203 @@
+//To run:
+//slim -d d_repID='1' -d d_f0=0.51 -d d_f1=0.14 -d d_f2=0.14 -d d_f3=0.21 -d d_f_pos=0 -d d_gamma_pos=125 -d "d_name='production5_huber_BGS_nopos_bottleneck'"
+
+
+
+initialize() {
+///Set general parameters
+    defineGlobal("scale", 300);
+    defineGlobal("N", 1e6);
+    defineConstant("Na", asInteger(N/scale));
+    defineGlobal("burnin", 14);
+    defineGlobal("nSamples", 50);
+    setSeed(asInteger(d_repID));
+
+///Set DFE bottlenecks
+    defineConstant("t0", 0.0);
+    defineConstant("t1", -1.0/(2*Na));
+    defineConstant("t2", -10.0/(2*Na));
+    defineConstant("t3", -100.0/(2*Na));
+    defineConstant("t4", -1.0);
+    defineConstant("gamma_pos", d_gamma_pos);
+    defineConstant("f_pos", d_f_pos);//fraction of beneficial mutations
+    defineConstant("f_del", (1.0-f_pos));//fraction of all deleterious classes
+    defineConstant("f0", d_f0); //neutral
+    defineConstant("f1", d_f1); //weakly del
+    defineConstant("f2", d_f2); //mod del
+    defineConstant("f3", d_f3); //strong del
+    defineConstant("f_intron", 0.573);
+    defineConstant("f_interg", 0.466);
+
+///Deleterious DFE
+    initializeMutationType("m1", 0.5, "f", 0.0); //neutral coding, 2Nes = [0,-1]
+    initializeMutationType("m2", 0.5, "s", "return runif(1, t2, t1);"); // -1<2Nes<-10, uniform distribution
+    initializeMutationType("m3", 0.5, "s", "return runif(1, t3, t2);"); //moderately deleterious, -10<2Nes<-100, uniform distribution
+    initializeMutationType("m4", 0.5, "s", "return runif(1, t4, t3);"); //strongly deleterious, 2Nes>=-100, uniform distribution
+    initializeMutationType("m5", 0.5, "f", 0.0); //neutral intergenic, 2Nes = 0
+
+///Beneficial Muts
+    defineConstant("s_pos", gamma_pos/(2.0*Na));
+    initializeMutationType("m6", 0.5, "e", s_pos); //beneficial class
+
+///Create genomic elements classes (genes and intergenic)
+    initializeGenomicElementType("g1", c(m5, m1, m2, m3, m4, m6), c(1-f_interg,f0*f_del*f_interg, f1*f_del*f_interg, f2*f_del*f_interg, f3*f_del*f_interg, f_pos*f_interg)); //intergenic
+    initializeGenomicElementType("g2", c(m5, m1, m2, m3, m4, m6), c(1-f_intron,f0*f_del*f_intron, f1*f_del*f_intron, f2*f_del*f_intron, f3*f_del*f_intron, f_pos*f_intron)); //intronic
+    initializeGenomicElementType("g3", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //exons: weakly deleterious, gamma, need to add m6 for ben muts
+    initializeGenomicElementType("g4", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //5UTR: weakly deleterious, gamma, need to add m6 for ben muts
+    initializeGenomicElementType("g5", c(m1, m2, m3, m4, m6), c(f0*f_del, f1*f_del, f2*f_del, f3*f_del, f_pos)); //3UTR: weakly deleterious, gamma, need to add m6 for ben muts
+
+///Set gene parameters
+    intron_len = 999; // Needed Lynch 2006 esimate of 3749, rather than Piovesan 2019's estimate of 6938bp
+    exon_len = 314;
+    UTR5 = 266;
+    UTR3 = 382; //Assumes genes always on positive strand
+    num_exons = 5;
+    num_introns = 4;
+    
+    full_gene_len = exon_len*num_exons + intron_len*num_introns;
+    gene_block_len = UTR3 + UTR5 + full_gene_len;
+    exon_block_len = exon_len + intron_len;
+    
+///Set genome structure parameters
+    num_bins = 50; //Number of 1Mb segments
+    bin_size = 100000; //Size of bins (1Mb)
+	 init_token = 20000; token = init_token;//"Telomeric" intergenic length
+    ngenes=c(6,3,16,10,16,13,15,16,16,15,14,8,10,8,16,11,15,11,16,14,16,16,16,5,15,14,11,15,10,13,4,8,10,16,4,0,1,13,0,12,16,0,7,13,14,16,16,3,16,16); //See gene_density_generation.slim for details
+	
+//Print summaries, and save bottlenecks for printing at end of simulation
+    print("gene length = " + full_gene_len);
+    print("ngenes per bin printed below:");
+	 print(ngenes);   
+	  
+    defineGlobal("ngenes", asInteger(ngenes));
+	 defineConstant("seltot", (exon_len*num_exons*sum(ngenes)+UTR5*sum(ngenes)+UTR3*sum(ngenes) + f_intron*num_introns*sum(ngenes)*intron_len + f_interg*(bin_size*num_bins-gene_block_len*sum(ngenes))));
+	 defineConstant("non_int_total", (UTR5+UTR3+exon_len*num_exons+intron_len*num_introns)*sum(ngenes));
+	 defineConstant("intron_total", (intron_len*num_introns*sum(ngenes)));
+
+//Build genes with variable density
+	initializeGenomicElement(g1, 0, init_token-1);//Add start intergenic
+
+	for (x in 0:(num_bins-1)){ //For each bin
+	inter_len = ifelse(ngenes[x] == 0, asFloat(bin_size), (bin_size - ngenes[x]*(full_gene_len + UTR5 + UTR3))/(ngenes[x])); //Calculate length of intergenics for bin
+	inter_len = asInteger(inter_len);
+	inter_len = ifelse(inter_len < 2, 2, inter_len);
+	initializeGenomicElement(g1, token, (token + asInteger(inter_len/2)-1)); //Add start of bin intergenic
+	token = token + asInteger(inter_len/2);
+
+		for (y in 0:(ngenes[x])){ //For each gene in bin
+
+			if(y > 0){
+			initializeGenomicElement(g4, token, (token + UTR5-1)); // Add 5' UTR
+			token = token + UTR5;
+	
+				for (z in 0:(num_introns-1)){
+				initializeGenomicElement(g3, (token + z*exon_block_len), (token + z*exon_block_len + exon_len-1)); //Exons
+				initializeGenomicElement(g2, (token + z*exon_block_len + exon_len), (token + z*exon_block_len + exon_len + intron_len-1)); //Introns
+				}
+				
+			initializeGenomicElement(g3, (token + (z+1)*exon_block_len), (token + (z+1)*exon_block_len + exon_len-1)); //Add end exon
+			initializeGenomicElement(g5, (token + full_gene_len), (token + full_gene_len + UTR3-1)); //Add 3' UTR
+			token = token + full_gene_len + UTR3; 
+			}
+			if(y != 0  | ngenes[x] == 0){ 
+			initializeGenomicElement(g1, token, ifelse(y == ngenes[x], token + asInteger(inter_len/2)-1, (token + inter_len-1))); //Add post-gene intergenic
+			token = token + ifelse(y == ngenes[x], asInteger(inter_len/2), inter_len);
+			}
+		}
+	}
+
+	initializeGenomicElement(g1, token, (token + init_token));//Add end intergenic
+//End build genes
+
+
+//Mutation rate generated distribution by rnorm(), with 20kb intergenic telomeres with mean rate 3e-9
+
+	mrates = c(3,3.55,3.38,2.65,0.42,1.60,3.22,4.43,4.98,3.51,1.21,0.75,4.67,3.07,1.60,2.88,3.99,4.32,1.10,2.30,2.96,2.67,2.63,3.50,4.42,2.75,2.13,1.56,5.49,3.16,5.21,1.99,2.47,0.96,2.23,2.77,1.62,3.17,1.77,0.61,2.04,3.71,3.83,3.91,2.16,2.84,3.13,7.70,1.23,4.26,1.60,2.47,4.09,2.92,0.74,2.24,0.05,4.88,5.05,2.81,3.14,3.43,2.60,4.78,3.01,2.78,2.50,4.62,2.43,1.55,3.44,3.48,3.73,3.13,1.40,2.96,3.81,1.70,0.30,3.22,2.76,3.48,1.31,3.47,1.02,5.37,2.65,2.61,1.81,3.56,4.59,5.03,5.01,2.23,3.50,1.91,5.17,2.85,4.28,4.33,0.3,3);
+	mrates=mrates*1e-9;
+	
+	mends=19999;
+	for (i in 1:100){mends = c(mends,19999+50000*i);}
+	mends=c(mends, 5039999);
+	
+	
+//Recomb rates taken from mean across 100x 100Kb bins from 10Mb-20Mb on 2R (Comeron et al. 2012)
+
+	rrates = c(1,1.03,1.18,1.46,0.49,0.94,0.70,0.54,0.39,1.21,1.70,0.30,0.36,0.94,0.36,1.24,0.82,1.15,0.61,1.09,1.00,1.88,2.27,0.88,1.24,1.27,2.27,1.00,0.58,0.82,0.46,0.82,0.49,1.39,0.79,0.15,0.85,0.67,1.12,2.18,1.24,0.88,1.58,0.88,0.91,0.88,2.03,1.03,2.48,1.00,1.15,1.58,1.36,1.18,0.64,0.54,0.36,0.12,0.46,0.49,0.06,0.85,1.27,1.48,0.94,1.06,1.88,1.00,0.76,2.00,0.73,1.51,2.09,0.73,0.70,1.70,1.42,0.73,0.70,0.49,0.76,0.61,0.70,0.27,2.33,0.88,0.46,0.64,0.88,0.70,0.88,0.67,0.39,0.24,2.09,1.79,1.06,1.64,0.51,0.61,0.42,1);
+	rrates=rrates*1e-8;
+	
+	rends=19999;
+	for (i in 1:100){rends = c(rends,19999+50000*i);}
+	rends=c(rends, 5039999);
+
+	initializeMutationRate(scale*mrates, asInteger(mends)); //mrates scaled for mean to be 3e-9
+
+    initializeRecombinationRate(scale*rrates, asInteger(rends)); //mrates scaled for mean to be 1e-8
+}
+
+1 early() {
+    sim.addSubpop("p1", asInteger(N/scale));
+}
+
+46666 late(){
+    print("N prior to pop change: " + p1.individualCount);
+}
+
+46667 late(){
+p1.setSubpopulationSize(asInteger(N/scale/10));
+}
+
+46677:50009 early(){
+t = (community.tick - 46677);
+p1_size = round(asInteger(N/scale/10) + round((0.0000009*scale*t^2)));
+p1.setSubpopulationSize(asInteger(p1_size));
+}
+
+50009 late(){
+print("N at end of pop change 1: " + p1.individualCount);
+}
+
+50010 early() {
+p1.setSubpopulationSize(asInteger(N/scale));
+}
+
+53342 late(){
+    print("N prior to pop change: " + p1.individualCount);
+}
+
+53343 late() {
+p1.setSubpopulationSize(asInteger(N/scale/10));
+}
+
+53353:56687 early() {
+t = (community.tick - 53353);
+p1_size = round(asInteger(N/scale/10) + round((0.0000009*scale*t^2)));
+p1.setSubpopulationSize(asInteger(p1_size));
+}
+
+
+56687 late(){
+p1.outputVCFSample(sampleSize=nSamples, outputMultiallelics=F, filePath="/work/users/j/i/jimarsh/drosoph_sims/dfe_production5box/" + d_name + "_R" + d_repID + ".vcf", append=F, outputNonnucleotides=T);
+
+sim.outputFixedMutations(); 
+
+    print("N at the end of simulation: " + p1.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition + " (" + asInteger(sim.chromosome.lastPosition)/1000000 + "Mb)");
+    print("Number of genes = " + sum(ngenes));
+    print("Proportion under DFE = " + (seltot/sim.chromosome.lastPosition));
+    print("Proportion selected = " + (seltot/sim.chromosome.lastPosition)*(1-f0));
+   prop_interg = (sim.chromosome.lastPosition-non_int_total)/sim.chromosome.lastPosition;
+    print("Proportion intergenic = " + prop_interg);
+   prop_intron = (intron_total/sim.chromosome.lastPosition);
+    print("Proportion intronic = " + prop_intron); 
+    print("Total nMutations = " + size(sim.mutations));
+    print("Theta pi for all mutations = " + (calcHeterozygosity(genomes=p1.genomes)));
+    print("Theta pi for neutral interg/intron across whole genome = " + (calcHeterozygosity(genomes=p1.genomes, muts=sim.mutationsOfType(m5))));    
+    print("Rep" + d_repID + " theta pi for neutral interg/intron, size corrected = " + (calcHeterozygosity(genomes=p1.genomes, muts=sim.mutationsOfType(m5))/((prop_intron-prop_intron*f_intron) + (prop_interg-prop_interg*f_interg))));
+    print("rep" + d_repID + " W pi for neutral interg/intron, size corrected = " + (calcWattersonsTheta(genomes=p1.genomes, muts=sim.mutationsOfType(m5))/((prop_intron-prop_intron*f_intron) + (prop_interg-prop_interg*f_interg))));    
+    print("m1 = " + (sim.countOfMutationsOfType(m1)/size(sim.mutations)) + "(f0)");
+    print("m2 = " + (sim.countOfMutationsOfType(m2)/size(sim.mutations)) + "(f1)");
+    print("m3 = " + (sim.countOfMutationsOfType(m3)/size(sim.mutations)) + "(f2)");
+    print("m4 = " + (sim.countOfMutationsOfType(m4)/size(sim.mutations)) + "(f3)");
+    print("m5 = " + (sim.countOfMutationsOfType(m5)/size(sim.mutations)) + "(interg/intron neutral)");
+    print("m6 = " + (sim.countOfMutationsOfType(m6)/size(sim.mutations)));
+}
