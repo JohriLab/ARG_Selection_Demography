@@ -792,7 +792,8 @@ constant_plot <- ggplot2::ggplot(constant_Ne) +
   ggplot2::theme_minimal() +
   ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
                  panel.grid.minor = ggplot2::element_blank(),
-                 axis.title.x = element_blank())  +
+                 axis.title.x = element_blank(),
+                 axis.title.y=element_text(angle = 0, face="italic", vjust = 0.5))  +
   ylab("N") +
 #  xlab("nGenerations from present") + 
   ggplot2::geom_line(data = constant_Tline, aes(y = Truth, x = nGen), color = "black") +
@@ -855,10 +856,10 @@ expansion_Tline <- tibble(nGen = seq(0,5000000,1000)) %>% dplyr::mutate(Truth = 
 
 expansion_Ne <- expansion_Ne %>% mutate(pfix = factor(pfix, levels = prefixes))
 
-expansion_plot <- ggplot2::ggplot(expansion_Ne %>% mutate(Nesquish = oob_squish(expansion_Ne$Ne, range = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 10000000))))) +
+expansion_plot <- ggplot2::ggplot(expansion_Ne) +
   annotation_logticks(short = unit(0.05, "cm"), outside = F, sides = "l")+
-  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Nesquish, group = newcol, colour = pfix), alpha = 0.2) +
-  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Nesquish, group = pfix, colour = pfix), se = F) +
+  ggplot2::geom_line(ggplot2::aes(x = nGen, y = Ne, group = newcol, colour = pfix), alpha = 0.2) +
+  ggplot2::geom_smooth(ggplot2::aes(x = nGen, y = Ne, group = pfix, colour = pfix), se = F) +
   ggplot2::scale_x_continuous(limits = c(0, ifelse(species == "human", 100000, 5.2e6))) +
   ggplot2::scale_colour_manual(values = colours) +
   ggplot2::scale_y_log10(limits = c(0, 100000000)) +
@@ -866,7 +867,8 @@ expansion_plot <- ggplot2::ggplot(expansion_Ne %>% mutate(Nesquish = oob_squish(
   ggplot2::theme_minimal() +
   ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
                  panel.grid.minor = ggplot2::element_blank(),
-                 axis.title.x = element_blank())  +
+                 axis.title.x = element_blank(),
+                 axis.title.y=element_text(angle = 0, face="italic", vjust = 0.5))  +
   ylab("N") +
 #  xlab("nGenerations from present") + 
   ggplot2::geom_line(data = expansion_Tline, aes(y = Truth, x = nGen), color = "black") +
@@ -939,9 +941,11 @@ contract_plot <- ggplot2::ggplot(contract_Ne) +
   ggplot2::ggtitle(base::paste0(title))  +
   ggplot2::theme_minimal() +
   ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
-                 panel.grid.minor = ggplot2::element_blank(),
-                 axis.title.x = element_blank())  +
-  ylab("N") +
+                 panel.grid.minor = ggplot2::element_blank(),#,
+                 axis.title.x = element_blank(),
+                axis.title.y = element_blank()
+                )  +
+#  ylab("N") +
 #  xlab("nGenerations from present") + 
   ggplot2::geom_line(data = contract_Tline, aes(y = Truth, x = nGen), color = "black") +
   ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
@@ -1016,9 +1020,9 @@ bottleneck_plot <- ggplot2::ggplot(bottleneck_Ne) +
   ggplot2::ggtitle(base::paste0(title))  +
   ggplot2::theme_minimal() +
   ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
-                 panel.grid.minor = ggplot2::element_blank()#,
+                 panel.grid.minor = ggplot2::element_blank(),#,
                  #axis.title.x = element_blank()
-                 )  +
+                 axis.title.y=element_text(angle = 0, face="italic", vjust = 0.5))  +
   ylab("N") +
   xlab("Generations from present") + 
   ggplot2::geom_line(data = bottleneck_Tline, aes(y = Truth, x = nGen), color = "black")  +
@@ -1099,10 +1103,11 @@ repbneck_plot <- ggplot2::ggplot(repbneck_Ne) +
   ggplot2::ggtitle(base::paste0(title))  +
   ggplot2::theme_minimal() +
   ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5),
-                 panel.grid.minor = ggplot2::element_blank()#,
+                 panel.grid.minor = ggplot2::element_blank(),#,
                 # axis.title.x = element_blank()
+                axis.title.y = element_blank()
                 )  +
-  ylab("N") +
+#  ylab("N") +
   xlab("Generations from present") + 
   ggplot2::geom_line(data = repbneck_Tline, aes(y = Truth, x = nGen), color = "black") +
   ggplot2::coord_cartesian(xlim = c(0,ifelse(species == "human", 80000, 4000000)), ylim = c(ifelse(species == "human", 300, 3000), ifelse(species == "human", 100000, 5000000)))
@@ -1353,26 +1358,31 @@ DE"
 Figure1 <- 
   build_constantplot(
     prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
-    colours = c("light blue", "light green", "grey", "#997950"),
+    colours = c("grey", "#997950", "dark blue", "light blue"),
+#    colours = c("light blue", "light green", "grey", "#997950"),
     title = "Constant population size") +
   build_expansionplot(
     prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
-    colours = c("light blue", "light green", "grey", "#997950"),
+    colours = c("grey", "#997950", "dark blue", "light blue"),
+#    colours = c("light blue", "light green", "grey", "#997950"),
     title = "Recent 5-fold expansion") +
   build_contractplot(
     prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
-    colours = c("light blue", "light green", "grey", "#997950"),
+    colours = c("grey", "#997950", "dark blue", "light blue"),
+#    colours = c("light blue", "light green", "grey", "#997950"),
     title = "Recent 5-fold contraction") +
   build_bottleneckplot(
     prefixes = c("m5_re_production_neutral","m5_re_production_neutral_nomaps","m5_re_production_huber_BGS_nopos","m5_re_production_johri_BGS_nopos"),
-    colours = c("light blue", "light green", "grey", "#997950"),
+    colours = c("grey", "#997950", "dark blue", "light blue"),
+#    colours = c("light blue", "light green", "grey", "#997950"),
     title = "10-fold bottleneck & recovery") +
   build_repbneckplot(
     prefixes = c("m5_re_production_neutral",
       "m5_re_production_neutral_nomaps",
       "m5_re_production_huber_BGS_nopos",
       "m5_re_production_johri_BGS_nopos"),
-    colours = c("light blue", "light green", "grey", "#997950"),
+    colours = c("grey", "#997950", "dark blue", "light blue"),
+#    colours = c("light blue", "light green", "grey", "#997950"),
     title = "Repeated 10-fold bottleneck & recovery"
   ) +
   guide_area() +
@@ -1383,23 +1393,28 @@ Figure1
 Figure2 <- 
   build_constantplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),
     title = "Constant population size") +
   build_expansionplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),
     title = "Recent 5-fold expansion") +
   build_contractplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),
     title = "Recent 5-fold contraction") +
   build_bottleneckplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),
     title = "10-fold bottleneck & recovery") +
   build_repbneckplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_lowS_lowG", "m5_re_production_huber_BGS_lowS_midG", "m5_re_production_huber_BGS_lowS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),
     title = "Repeated 10-fold bottleneck & recovery") +
   guide_area() +
   plot_layout(design = layout, 
@@ -1410,29 +1425,36 @@ Figure2
 Figure3 <- 
   build_constantplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
-    title = "Constant population size") +
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),    
+title = "Constant population size") +
   build_expansionplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
-    title = "Recent 5-fold expansion") +
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),    
+title = "Recent 5-fold expansion") +
   build_contractplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
-    title = "Recent 5-fold contraction") +
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),    
+title = "Recent 5-fold contraction") +
   build_bottleneckplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
-    title = "10-fold bottleneck & recovery") +
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),    
+title = "10-fold bottleneck & recovery") +
   build_repbneckplot(
     prefixes = c("m5_re_production_huber_BGS_nopos", "m5_re_production_huber_BGS_highS_lowG", "m5_re_production_huber_BGS_highS_midG", "m5_re_production_huber_BGS_highS_mhiG"), 
-    colours = c("grey", "forest green", "blue", "purple"),
-    title = "Repeated 10-fold bottleneck & recovery") +
+    colours = c("dark blue", "#8DCD00", "#DCD200", "#DC6400"),
+#    colours = c("grey", "forest green", "blue", "purple"),    
+title = "Repeated 10-fold bottleneck & recovery") +
   guide_area() +
   plot_layout(design = layout, guides= "collect")
 
+Figure3
+
 Figure1
-ggsave('preFigure1.pdf',
+ggsave('preFigure1b.pdf',
        Figure1, 
        device = 'pdf', 
        dpi = 1800,
@@ -1441,7 +1463,7 @@ ggsave('preFigure1.pdf',
        units = "mm")
 
 Figure2
-ggsave('preFigure2.pdf',
+ggsave('preFigure2b.pdf',
        Figure2, 
        device = 'pdf', 
        dpi = 1800,
@@ -1450,7 +1472,7 @@ ggsave('preFigure2.pdf',
        units = "mm")
 
 Figure3
-ggsave('preFigure3.pdf',
+ggsave('preFigure3b.pdf',
        Figure3, 
        device = 'pdf', 
        dpi = 1800,
@@ -1471,42 +1493,42 @@ Figure4 <-
     prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
                  "m5_production5_BGS_nopos", "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
                  "m5_production5_BGS_jensen"),
-    colours = c("light blue", #"dark blue", 
-                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    colours = c("grey", #"dark blue", 
+                "dark blue", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
     title = "Constant population size",species = "drosoph") +
   build_expansionplot(
     prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
                  "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
                  "m5_production5_BGS_jensen"),
-    colours = c("light blue", #"dark blue", 
-                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    colours = c("grey", #"dark blue", 
+                "dark blue", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
     title = "Recent 5-fold expansion",species = "drosoph") +
   build_contractplot(
     prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
                  "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
                  "m5_production5_BGS_jensen"),
-    colours = c("light blue", #"dark blue", 
-                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    colours = c("grey", #"dark blue", 
+                "dark blue", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
     title = "Recent 5-fold contraction",species = "drosoph") +
   build_bottleneckplot(
     prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
                  "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
                  "m5_production5_BGS_jensen"),
-    colours = c("light blue", #"dark blue", 
-                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    colours = c("grey", #"dark blue", 
+                "dark blue", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
     title = "10-fold bottleneck & recovery",species = "drosoph") +
   build_repbneckplot(
     prefixes = c("m5_production5_neutral", #"m5_production5_neutral_nomaps", 
                  "m5_production5_BGS_nopos" , "m5_production5_BGS_midS_midG", "m5_production5_BGS_highS_midG", "m5_production5_BGS_highS_lowG", #"m5_production5_BGS_midS_lowG", 
                  "m5_production5_BGS_jensen"),
-    colours = c("light blue", #"dark blue", 
-                "gray", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
+    colours = c("grey", #"dark blue", 
+                "dark blue", "#DBCF18", "#D87812", "#71A500", "#E11B1B"),
     title = "Repeated 10-fold bottleneck & recovery",species = "drosoph") +
   guide_area() +
   plot_layout(design = layout, guides= "collect")
 
 Figure4
-ggsave('preFigure4.pdf',
+ggsave('preFigure4b.pdf',
        Figure4, 
        device = 'pdf', 
        dpi = 1800,
